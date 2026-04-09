@@ -14,17 +14,39 @@ A PDF of that dictionary is included in this repository as the working source fo
 
 The printed book also contains sections on **formulation of scientific names**, **transliteration of Greek words**, and **common combining forms**—those sections will inform how the app validates and combines roots.
 
-## Planned application
+## Web app (current)
 
-1. **Ingest and structure** the dictionary (roots, meanings, languages, combining forms, and cross-references).
-2. **Map natural language** (e.g. “small forest-dwelling frog with bright eyes”) to relevant roots and affixes using the structured lexicon and, where helpful, lightweight semantics or search.
-3. **Propose names** by combining forms according to common biological naming conventions (gender agreement, linking vowels, hyphenation rules where applicable, etc.), with explanations so you can refine the result.
+The **`web/`** package is a client-side app that loads structured entries from `web/public/dictionary.json`.
 
-Implementation details (stack, hosting, and data handling) will be decided as the project grows.
+- **Search + letter row** — One view: search box and A–Z (and `#`) buttons. With an empty search, pick a letter to list entries for that headword letter (book order within the letter). With text in the search box, up to 200 matches are shown across all letters; choose a letter to clear the search and jump to that letter.
+- **Name builder** — Enter a short English phrase (e.g. “an unapproachable eagle”). The app matches the first two content words to dictionary glosses, then joins the stems using Greek/Latin combining rules from Borror’s *Formulation of Scientific Names* (e.g. omitting the Greek linking vowel before a vowel-initial second root). Output is a draft epithet / genus-style stem; real names still need correct grammatical endings and availability checks.
+- **Entry cards** — Show Borror’s root line, expand abbreviations such as `(G)` / `(L)` into full language names, and add short natural-language notes for notation (connecting vowels after commas, `=`, leading hyphen, etc.).
 
-## Repository layout
+### Requirements
 
-For now this repository contains only this README and the source PDF. Application code, extracted data, and tests will be added in later commits.
+- **Node.js** (for `npm` in `web/`).
+- **pdftotext** from [Poppler](https://poppler.freedesktop.org/) (e.g. `poppler-utils` on Debian) to regenerate the JSON from the PDF.
+
+### Commands
+
+```bash
+# Regenerate dictionary JSON from the PDF (run from repo root)
+python3 scripts/extract_dictionary.py
+
+# Develop
+cd web && npm install && npm run dev
+
+# Production build
+cd web && npm run build
+```
+
+Serve `web/dist/` with any static file server for production.
+
+## Roadmap
+
+1. **Richer search** — Synonyms, stemming, or embeddings for English descriptions (beyond substring search).
+2. **Name builder** — Suggest compounds from chosen roots with basic Latin/Greek linking rules.
+3. **Cleaner extraction** — Improve wrapped lines and OCR glitches in the PDF-derived data.
 
 ## License
 
