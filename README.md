@@ -25,3 +25,7 @@ Implementation details (stack, hosting, and data handling) will be decided as th
 ## Repository layout
 
 For now this repository contains only this README and the source PDF. Application code, extracted data, and tests will be added in later commits.
+
+## License
+
+This project is licensed under the [GNU General Public License v3.0](LICENSE) (GPL-3.0).
