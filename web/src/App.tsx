@@ -3,6 +3,9 @@ import { EntryCard } from './components/EntryCard'
 import { NameBuilder } from './components/NameBuilder'
 import type { DictionaryEntry, DictionaryPayload } from './types'
 
+/** Bundled in `web/public/`; same file the extractor reads. */
+const BORROR_PDF = '/dictionary_of_word_roots_and_combining_forms_borror.pdf'
+
 function browseLetter(entry: DictionaryEntry): string {
   const r = entry.roots.replace(/^[*•=«»\s]+/, '')
   const ch = r.charAt(0).toUpperCase()
@@ -77,12 +80,32 @@ export default function App() {
           Dictionary of word roots
         </h1>
         <p className="mt-3 text-pretty text-stone-400">
-          Digital index to Borror: filter by letter or search English glosses, roots, and language
-          tags. Entry order follows each printed page (full left column, then full right). Each
-          card unpacks the book’s shorthand (language tags, hyphens, connecting vowels).
+          Search English glosses and roots, or browse by headword letter in the same order as the
+          printed book (each page: full left column, then full right). Use the name builder to draft
+          two-root compounds from a short phrase. Each card expands Borror’s shorthand (language
+          tags, hyphens, connecting vowels).
         </p>
+        <div className="mx-auto mt-6 max-w-xl rounded-lg border border-stone-700/80 bg-stone-900/40 px-4 py-3 text-left text-sm text-stone-300">
+          <p className="font-medium text-stone-200">Source book</p>
+          <p className="mt-2 text-pretty leading-relaxed text-stone-400">
+            This app is a lookup index to{' '}
+            <cite className="not-italic text-stone-300">Dictionary of Word Roots and Combining Forms</cite>{' '}
+            (first edition, 1960) by <strong className="font-medium text-stone-200">Donald J. Borror</strong>
+            , Mayfield Publishing Company. The entry list is extracted automatically from the PDF; the
+            PDF remains the authoritative source for the dictionary text and for Borror’s sections
+            on formulation of scientific names and transliteration.
+          </p>
+          <a
+            href={BORROR_PDF}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-3 inline-flex items-center justify-center rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 focus:ring-offset-stone-950"
+          >
+            Open book PDF
+          </a>
+        </div>
         {data && (
-          <p className="mt-2 text-sm text-stone-500">
+          <p className="mt-4 text-sm text-stone-500">
             {data.entryCount.toLocaleString()} entries
             {data.order === 'book-columns' ? ' · book column order' : ''}
           </p>

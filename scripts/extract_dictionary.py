@@ -282,7 +282,7 @@ def extract_dictionary(raw_text: str) -> list[dict]:
 
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
-    pdf = root / "dictionary_of_word_roots_and_combining_forms_borror.pdf"
+    pdf = root / "web" / "public" / "dictionary_of_word_roots_and_combining_forms_borror.pdf"
     out_json = root / "web" / "public" / "dictionary.json"
     if len(sys.argv) > 1:
         pdf = Path(sys.argv[1])

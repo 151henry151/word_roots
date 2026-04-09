@@ -1,36 +1,39 @@
 # word_roots
 
-A web application that helps you invent **scientific names** (for example, species epithets or compound names) by turning a **plain-language description** of the organism into suggested **Latin and Greek combining forms**, then assembling them into coherent candidates.
+Browser-based tools built around **Donald J. Borror’s** *Dictionary of Word Roots and Combining Forms*: a **searchable index** of extracted entries, a **species-name / compound builder** from plain English, and an **in-app link to the original PDF** for full text and Borror’s introductory chapters.
 
-The goal is to support the same audience Borror had in mind—students, clinicians, and especially **taxonomists** who need to coin names that follow conventional patterns for word formation.
+The audience matches Borror’s—students, clinicians, and especially **taxonomists** who need conventional Latin and Greek combining forms when coining names.
 
 ## Source material
 
-The project is built around *Dictionary of Word Roots and Combining Forms* by **Donald J. Borror** (Mayfield Publishing Company; first edition 1960), compiled from Greek, Latin, and other languages with emphasis on biological terminology and scientific naming.
+The underlying work is *Dictionary of Word Roots and Combining Forms* (first edition **1960**), **Donald J. Borror**, Mayfield Publishing Company: Greek, Latin, and other languages with emphasis on biological terminology and scientific naming.
 
-A PDF of that dictionary is included in this repository as the working source for analysis and tooling:
+The bundled PDF used for extraction and in the web UI lives at:
 
-- `dictionary_of_word_roots_and_combining_forms_borror.pdf`
+- `web/public/dictionary_of_word_roots_and_combining_forms_borror.pdf`
 
-The printed book also contains sections on **formulation of scientific names**, **transliteration of Greek words**, and **common combining forms**—those sections will inform how the app validates and combines roots.
+The printed book also contains sections on **formulation of scientific names**, **transliteration of Greek**, and **common combining forms**. Those sections are not duplicated in the app; open the PDF for the full treatment.
 
-## Web app (current)
+## Web app (`web/`)
 
-The **`web/`** package is a client-side app that loads structured entries from `web/public/dictionary.json`.
+A **static client-side** app (Vite + React + TypeScript). At runtime it loads **`web/public/dictionary.json`** only; there is no server API.
 
-- **Search + letter row** — One view: search box and A–Z (and `#`) buttons. With an empty search, pick a letter to list entries for that headword letter (book order within the letter). With text in the search box, up to 200 matches are shown across all letters; choose a letter to clear the search and jump to that letter.
-- **Name builder** — Enter a short English phrase (e.g. “an unapproachable eagle”). The app matches the first two content words to dictionary glosses, then joins the stems using Greek/Latin combining rules from Borror’s *Formulation of Scientific Names* (e.g. omitting the Greek linking vowel before a vowel-initial second root). Output is a draft epithet / genus-style stem; real names still need correct grammatical endings and availability checks.
-- **Entry cards** — Show Borror’s root line, expand abbreviations such as `(G)` / `(L)` into full language names, and add short natural-language notes for notation (connecting vowels after commas, `=`, leading hyphen, etc.).
+### Features
+
+- **Search + letter row** — One screen: a search box and **A–Z** (plus **`#`**) buttons. With an **empty** search, choose a letter to list entries whose headword starts with that letter (**book order** within the letter: each PDF page is read **left column then right column**). With **text in the search box**, up to **200** substring matches are shown across all letters; picking a letter clears the search and jumps to that letter’s browse list.
+- **Name builder** — Enter a short phrase (e.g. “unapproachable eagle”). **Stopwords** (articles, “and”, etc.) are dropped; the **first two content words** are matched to dictionary glosses, then stems are joined with simplified rules from Borror’s *Formulation of Scientific Names* (Greek **ο** linking and omission before a vowel-initial second stem, **o**+**o** elision where applicable, Latin **i** link when mixing Greek and Latin with a warning). Output is a **draft** lowercase epithet and a **genus-style** capitalized stem; real names still need correct endings, grammar, and nomenclatural availability checks. A **gloss-based note** suggests when your English order may invert Borror’s usual “quality before principal” pattern.
+- **Entry cards** — Show the root line, expand tags like `(G)` / `(L)` into full language names, and short notes on notation (commas, `=`, leading hyphens, etc.).
+- **Source book** — The UI includes attribution and a button to **open the Borror PDF** in a new tab (same file as in `web/public/`).
 
 ### Requirements
 
 - **Node.js** (for `npm` in `web/`).
-- **pdftotext** from [Poppler](https://poppler.freedesktop.org/) (e.g. `poppler-utils` on Debian) to regenerate the JSON from the PDF.
+- **pdftotext** from [Poppler](https://poppler.freedesktop.org/) (e.g. `poppler-utils` on Debian) to regenerate `dictionary.json` from the PDF.
 
 ### Commands
 
 ```bash
-# Regenerate dictionary JSON from the PDF (run from repo root)
+# Regenerate dictionary JSON from the bundled PDF (run from repo root)
 python3 scripts/extract_dictionary.py
 
 # Develop
@@ -45,8 +48,7 @@ Serve `web/dist/` with any static file server for production.
 ## Roadmap
 
 1. **Richer search** — Synonyms, stemming, or embeddings for English descriptions (beyond substring search).
-2. **Name builder** — Suggest compounds from chosen roots with basic Latin/Greek linking rules.
-3. **Cleaner extraction** — Improve wrapped lines and OCR glitches in the PDF-derived data.
+2. **Cleaner extraction** — Improve wrapped lines and OCR glitches in the PDF-derived data.
 
 ## License
 

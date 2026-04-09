@@ -5,11 +5,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.9] - 2026-04-09
+
+### Added
+
+- Add a “Source book” panel in the web app with citation text and a button to open the Borror PDF in a new tab.
+
+### Changed
+
+- Move the bundled PDF to `web/public/dictionary_of_word_roots_and_combining_forms_borror.pdf` so the dev server and production build serve it; point `scripts/extract_dictionary.py` at that path.
+- Rewrite the root `README.md` to describe the web app features, data flow, and PDF location accurately.
+
 ## [0.1.8] - 2026-04-09
 
 ### Added
 
-- Track `dictionary_of_word_roots_and_combining_forms_borror.pdf` at the repository root so the extractor and docs refer to a checked-in source file.
+- Track `dictionary_of_word_roots_and_combining_forms_borror.pdf` at the repository root so the extractor and docs refer to a checked-in source file (superseded at **0.1.9** by the copy under `web/public/`).
 
 ## Initial setup (first push, 2026-04-09)
 
