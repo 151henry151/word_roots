@@ -20,12 +20,8 @@ The printed book also contains sections on **formulation of scientific names**, 
 2. **Map natural language** (e.g. “small forest-dwelling frog with bright eyes”) to relevant roots and affixes using the structured lexicon and, where helpful, lightweight semantics or search.
 3. **Propose names** by combining forms according to common biological naming conventions (gender agreement, linking vowels, hyphenation rules where applicable, etc.), with explanations so you can refine the result.
 
-Implementation details (stack, hosting, and licensing of generated data) will be decided as the project grows.
+Implementation details (stack, hosting, and data handling) will be decided as the project grows.
 
 ## Repository layout
 
 For now this repository contains only this README and the source PDF. Application code, extracted data, and tests will be added in later commits.
-
-## License
-
-The **application code** in this repository will be published under an open license once it exists. The **included PDF** is a published work subject to its own copyright; it is kept here as a reference for development. If you clone or fork this project, ensure your use of the book complies with copyright law and any licenses that apply in your jurisdiction.
