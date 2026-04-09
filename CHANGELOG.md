@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.8] - 2026-04-09
+
+### Added
+
+- Track `dictionary_of_word_roots_and_combining_forms_borror.pdf` at the repository root so the extractor and docs refer to a checked-in source file.
+
 ## Initial setup (first push, 2026-04-09)
 
 This section summarizes everything introduced before the first `git push` of the application stack. The numbered releases **0.1.0** through **0.1.7** below list the same work in development order; **web/package.json** is at **0.1.7**.
