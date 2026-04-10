@@ -45,6 +45,9 @@ python3 scripts/lint_dictionary_alphabetical.py
 # Optional: full tab-separated report of every such pair (redirect to a file for review)
 python3 scripts/report_alphabetical_inversions.py -o /tmp/alphabetical_inversions.txt
 
+# `spurious_alphabetical_inversion_entries.json` drops the “higher sort key” row per pair from the web bundle;
+# see `scripts/ALPHABETICAL_INVERSION_PAIR_ANALYSIS.md` for per-pair notes (many same-stem pairs are ASCII false positives).
+
 # Develop
 cd web && npm install && npm run dev
 
