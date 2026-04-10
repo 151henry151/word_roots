@@ -5,7 +5,7 @@ import { NameBuilder } from './components/NameBuilder'
 import { BORROR_INTRODUCTION } from './content/borrorBookSections'
 import type { DictionaryEntry, DictionaryPayload } from './types'
 
-/** Bundled in `web/public/`; same file the extractor reads. `BASE_URL` is `/` in dev and `/word_roots/` in production. */
+/** Bundled in `web/public/`; same file the extractor reads. Follows Vite `base` (`/` in local dev, `/word_roots/` when built with `.env.production`). */
 const base = import.meta.env.BASE_URL
 const BORROR_PDF = `${base}dictionary_of_word_roots_and_combining_forms_borror.pdf`
 

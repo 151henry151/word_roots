@@ -13,16 +13,15 @@ export function EntryCard({ entry }: { entry: DictionaryEntry }) {
         {describeLangCodes(entry.langCode)}
       </div>
       <p className="mt-2 text-stone-100">{entry.meaning}</p>
-      <div className="mt-3 border-t border-stone-700/60 pt-3">
-        <h3 className="text-xs font-medium uppercase tracking-wide text-stone-500">
-          How to read this entry
-        </h3>
-        <ul className="mt-2 list-inside list-disc space-y-1 text-sm leading-relaxed text-stone-400">
-          {notes.map((line, i) => (
-            <li key={i}>{line}</li>
-          ))}
-        </ul>
-      </div>
+      {notes.length > 0 && (
+        <div className="mt-3 border-t border-stone-700/60 pt-3">
+          <ul className="list-inside list-disc space-y-1 text-sm leading-relaxed text-stone-400">
+            {notes.map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
     </article>
   )
 }

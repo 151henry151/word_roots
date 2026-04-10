@@ -43,7 +43,11 @@ cd web && npm install && npm run dev
 cd web && npm run build
 ```
 
+The extractor merges wrapped gloss lines in each column (continuation rows without a new `(LANG).` tag) and can carry an incomplete trailing line across page breaks when the gloss still ends with a comma. When **two headwords** appear in one OCR fragment (the column gutter was only 2–3 spaces, so the wide-space column split missed), it **splits on repeated `roots (LANG).` patterns**, and when a second headword is **jammed onto the same line** after the first gloss (e.g. `=depas` / `=diazoma`), it **splits on `roots (LANG).` inside the English**. OCR reads Borror’s **`=`** as **`«`** in places; the extractor **normalizes `«` to `=`** everywhere. **`OCR_EQUALS_ROOT_FIXES`** is reserved for any remaining roots-level overrides after that (usually empty).
+
 Serve `web/dist/` with any static file server for production.
+
+**Subpath hosting** — Production builds for `https://hromp.com/word_roots/` use `web/.env.production` with `VITE_BASE=/word_roots/` so JS, CSS, `dictionary.json`, and the PDF resolve under that path. For hosting at the site root, set `VITE_BASE=/` (or remove the variable) before `npm run build`.
 
 ## Roadmap
 

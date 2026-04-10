@@ -21,7 +21,9 @@ COL_SPLIT_RE = re.compile(r"\s{4,}")
 
 # Typo in OCR: (Gj. instead of (G).
 def fix_ocr_typos(segment: str) -> str:
-    return segment.replace("(Gj.", "(G).")
+    """Normalize OCR: the printed book uses '=' for terminal stems, not guillemets."""
+    s = segment.replace("(Gj.", "(G).")
+    return s.replace("«", "=")
 
 
 def pdftotext_layout(pdf_path: Path) -> str:
@@ -128,6 +130,31 @@ def line_left_right(line: str) -> tuple[str | None, str | None]:
     return None, None
 
 
+# One pdftotext line may contain two entries if the column gap is only 2–3 spaces (below COL_SPLIT width).
+# Each fragment is "roots (LANG). gloss…"; find multiple headwords and split into separate cells.
+_JAMMED_ENTRY_HEAD = re.compile(
+    r"(?:^|\s{2,})([=a-zA-Z«][a-zA-Z0-9,=«\s\-,]*)\s+\(([^)]+)\)\.",
+)
+
+
+def split_jammed_two_entries(cell: str) -> list[str]:
+    """Split a layout fragment that accidentally contains two headwords (narrow column gutter in OCR)."""
+    cell = cell.strip()
+    if not cell:
+        return []
+    matches = list(_JAMMED_ENTRY_HEAD.finditer(cell))
+    if len(matches) <= 1:
+        return [cell]
+    out: list[str] = []
+    for i, m in enumerate(matches):
+        start = m.start()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(cell)
+        piece = cell[start:end].strip()
+        if piece:
+            out.append(piece)
+    return out
+
+
 def should_skip_layout_line(line: str) -> bool:
     """Running titles, page numbers, and blank lines — not dictionary entries."""
     s = line.strip()
@@ -169,10 +196,11 @@ def salvage_roots(roots: str) -> str | None:
     return None
 
 
-# A second headword inside the gloss. Must not match bare "«a" / "«s" (combining-form fragments):
-# the capture must start with a Latin letter, OR be « followed by 3+ letters (e.g. «alca).
+# A second headword inside the gloss (single space between gloss and next root is common).
+# Must not match bare "=a" / "=s" fragments — see roots_is_concat_fragment.
+# Includes "=stem, -o (G)." after fix_ocr_typos maps « to =.
 CONCAT_ENTRY_IN_MEANING = re.compile(
-    r"\s+((?:[a-zA-Z][a-zA-Z«=*,\-0-9]*|«[a-zA-Z]{3,}))\s+\(([A-Za-z][A-Za-z ]*)\)\.\s*",
+    r"\s+((?:[a-zA-Z][a-zA-Z«=*,\-0-9]*|=[a-zA-Z][a-zA-Z0-9,=«\s\-,]*|«[a-zA-Z][a-zA-Z0-9,=«\s\-,]*))\s+\(([A-Za-z][A-Za-z ]*)\)\.\s*",
 )
 
 # Two column entries run together: "… Of copper, money agel, =a (G). A herd" — the comma–equals
@@ -193,17 +221,42 @@ def split_concatenated_meaning(meaning: str) -> tuple[str, str | None]:
     return meaning[: m.start()].strip(), meaning[m.start() :].strip()
 
 
+# A new headword always contains a Borror language tag like (G). or (L). or (G My).
+HAS_LANG_DOT = re.compile(r"\([^)]+\)\.\s")
+
+
+def merge_column_fragments(parts: list[str]) -> list[str]:
+    """
+    Join layout lines where a gloss continues on the next line without a new (LANG). tag.
+    pdftotext splits long glosses across rows; the continuation line has no parenthetical tag.
+    """
+    out: list[str] = []
+    for p in parts:
+        p = p.strip()
+        if not p:
+            continue
+        if HAS_LANG_DOT.search(p):
+            out.append(p)
+        elif out:
+            out[-1] = out[-1].rstrip() + " " + p
+        else:
+            out.append(p)
+    return out
+
+
 def roots_has_embedded_lang_tag(roots: str) -> bool:
     """True if OCR merged two headwords — roots should not contain a second '(LANG).' gloss tag."""
     return bool(re.search(r"\s\([A-Z][a-z]{0,14}\)\.\s", roots))
 
 
 def roots_is_concat_fragment(roots: str) -> bool:
-    """Reject bogus headwords produced by bad splits (bare « + one letter, etc.)."""
+    """Reject bogus headwords produced by bad splits (bare «/= + one letter, etc.)."""
     r = roots.strip()
-    if r in {"«a", "«o", "«s", "«e", "«i"}:
+    if r in {"«a", "«o", "«s", "«e", "«i", "=a", "=o", "=s", "=e", "=i"}:
         return True
     if re.fullmatch(r"«[a-zA-Z]{1,2}", r):
+        return True
+    if re.fullmatch(r"=[a-zA-Z]{1,2}", r):
         return True
     return False
 
@@ -247,37 +300,62 @@ def parse_segment(seg: str) -> list[dict]:
     return []
 
 
-def extract_entries_from_page_lines(page_lines: list[str]) -> list[dict]:
-    """
-    One printed page: full left column top-to-bottom, then full right column.
-    """
-    entries: list[dict] = []
-    left_segments: list[str] = []
-    right_segments: list[str] = []
-    for line in page_lines:
-        if should_skip_layout_line(line):
+def _append_parsed_entries(entries: list[dict], seg: str) -> None:
+    for row in parse_segment(seg):
+        if roots_is_concat_fragment(row["roots"]):
             continue
-        left, right = line_left_right(line)
-        if left:
-            left_segments.append(left)
-        if right:
-            right_segments.append(right)
-
-    for seg in left_segments + right_segments:
-        for row in parse_segment(seg):
-            if roots_is_concat_fragment(row["roots"]):
-                continue
-            row["rawSegment"] = seg[:500]
-            entries.append(row)
-    return entries
+        row["rawSegment"] = seg[:500]
+        entries.append(row)
 
 
 def extract_dictionary(raw_text: str) -> list[dict]:
-    """All dictionary pages: each page is read left column then right column."""
+    """All dictionary pages: left column then right column per page, with wrapped gloss lines merged."""
     entries: list[dict] = []
-    for page_lines in pages_for_dictionary_entries(raw_text):
-        entries.extend(extract_entries_from_page_lines(page_lines))
+    left_carry: str | None = None
+    right_carry: str | None = None
+    page_list = list(pages_for_dictionary_entries(raw_text))
+    for page_idx, page_lines in enumerate(page_list):
+        is_last_page = page_idx == len(page_list) - 1
+        left_frags: list[str] = []
+        right_frags: list[str] = []
+        for line in page_lines:
+            if should_skip_layout_line(line):
+                continue
+            left, right = line_left_right(line)
+            if left:
+                left_frags.extend(split_jammed_two_entries(left))
+            if right:
+                right_frags.extend(split_jammed_two_entries(right))
+        if left_carry:
+            left_frags = [left_carry] + left_frags
+        if right_carry:
+            right_frags = [right_carry] + right_frags
+        left_merged = merge_column_fragments(left_frags)
+        right_merged = merge_column_fragments(right_frags)
+
+        def process_column(merged: list[str]) -> str | None:
+            if not merged:
+                return None
+            if not is_last_page and merged[-1].rstrip().endswith(","):
+                for seg in merged[:-1]:
+                    _append_parsed_entries(entries, seg)
+                return merged[-1]
+            for seg in merged:
+                _append_parsed_entries(entries, seg)
+            return None
+
+        left_carry = process_column(left_merged)
+        right_carry = process_column(right_merged)
+
+    for tail in (left_carry, right_carry):
+        if tail:
+            _append_parsed_entries(entries, tail)
+
     return entries
+
+
+# Optional roots-level fixes when OCR still disagrees with the book after fix_ocr_typos («→=).
+OCR_EQUALS_ROOT_FIXES: dict[str, str] = {}
 
 
 def main() -> None:
@@ -289,6 +367,8 @@ def main() -> None:
 
     text = pdftotext_layout(pdf)
     entries = extract_dictionary(text)
+    for e in entries:
+        e["roots"] = OCR_EQUALS_ROOT_FIXES.get(e["roots"], e["roots"])
     # De-dupe while preserving order
     seen: set[tuple[str, str, str]] = set()
     unique: list[dict] = []

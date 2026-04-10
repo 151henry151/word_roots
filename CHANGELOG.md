@@ -5,6 +5,40 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.23] - 2026-04-10
+
+### Changed
+
+- In **`scripts/extract_dictionary.py`**, normalize OCR guillemet **`«`** to Borror’s **`=`** on all dictionary text; extend **concatenated-entry** splitting so a second headword like **`=diazoma, -to (G).`** after a single space is recognized; regenerate **`dictionary.json`** (e.g. separate **depas** and **diazoma**; terminal stems use **`=`** consistently).
+- Document extractor behavior in **`README.md`**; simplify **`notation.ts`** (no **`«`** in roots after extraction).
+
+## [0.1.22] - 2026-04-10
+
+### Changed
+
+- Split **jammed two-column lines** in **`extract_dictionary.py`** when one OCR fragment contains two `roots (LANG).` groups (narrow gutter); regenerate **`dictionary.json`** (e.g. **bracte** and **bubal** separated).
+- Add **`OCR_EQUALS_ROOT_FIXES`** for **`=`** vs **`«`** on terminal stems where OCR matches the printed book (starting with **bracte** / **bubal**).
+
+## [0.1.21] - 2026-04-10
+
+### Changed
+
+- In **`scripts/extract_dictionary.py`**, merge **wrapped gloss lines** in each column (rows without a new `(LANG).` tag) and **defer** a segment that still ends with a comma to the next page when needed; regenerate **`dictionary.json`** (fewer truncated glosses; entry count about **7023**). A small set of meanings may still end with a comma where OCR merged two columns.
+
+## [0.1.20] - 2026-04-10
+
+### Changed
+
+- Correct **`aapt`** gloss in **`dictionary.json`** to **“Unapproachable, invincible”** (PDF line wrap had split the English across two layout lines).
+- Omit the notation block on entries with **no** Borror-specific tips; drop the generic “parenthetical language tag” line for simple roots.
+- Remove the **“How to read this entry”** heading; show **only** the bullet list when tips exist.
+
+## [0.1.19] - 2026-04-10
+
+### Changed
+
+- Read Vite **`base`** from **`VITE_BASE`** in **`.env.production`** (default **`/`** so local **`npm run dev`** works at the site root without living under **`/word_roots/`**); keep **`VITE_BASE=/word_roots/`** for production builds aimed at hromp.
+
 ## [0.1.18] - 2026-04-10
 
 ### Changed
