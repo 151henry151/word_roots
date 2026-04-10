@@ -39,6 +39,9 @@ python3 scripts/extract_dictionary.py
 # Re-apply spurious filtering and overrides to the existing JSON (keeps book column order; no PDF)
 python3 scripts/rebuild_dictionary_from_json.py
 
+# Rebuild `spurious_alphabetical_inversion_entries.json` from the PDF (same rules as the linter; run after changing sort logic)
+python3 scripts/regenerate_spurious_alphabetical_inversion_entries.py
+
 # Optional: list browse-letter pairs that are out of strict A–Z order (column-OCR red flags)
 python3 scripts/lint_dictionary_alphabetical.py
 

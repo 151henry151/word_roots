@@ -662,6 +662,47 @@ def _try_split_aegr_aelur_ocr_blob(seg: str) -> list[dict] | None:
     ]
 
 
+# After `ocr_root_fixes` (e.g. `aem` → `haem`), these triples match `_try_split_aegr_aelur_ocr_blob`.
+# Book column order within that OCR blob is authoritative; do not drop via inversion exclusions.
+AEGR_OCR_BLOB_ENTRY_KEYS: frozenset[tuple[str, str, str]] = frozenset(
+    {
+        ("aegr, -o", "L", "Sick, diseased"),
+        ("aegypt, =us", "L", "Egypt"),
+        ("aene", "L", "Bronze; bronze-colored"),
+        ("haem, =a, -ato, -o", "G", "Blood"),
+        ("aelur, -o, =us", "G", "A cat; tail-wagging"),
+        ("aell, =a, -o", "G", "A storm, whirlwind"),
+    }
+)
+
+
+def compute_spurious_alphabetical_inversion_drops(entries: list[dict]) -> list[dict]:
+    """
+    First row of each adjacent browse-letter inversion (higher `roots_sort_key` than the next row),
+    excluding same-lemma pairs (`first_stem_key` equal) and rows from the shredded **aegr** OCR block.
+    """
+    buckets: dict[str, list[dict]] = {}
+    for e in entries:
+        L = browse_letter_bucket(e["roots"])
+        buckets.setdefault(L, []).append(e)
+    to_remove: list[dict] = []
+    letters = sorted(buckets.keys(), key=lambda x: (x == "#", x))
+    for L in letters:
+        xs = buckets[L]
+        for i in range(len(xs) - 1):
+            if first_stem_key(xs[i]["roots"]) == first_stem_key(xs[i + 1]["roots"]):
+                continue
+            a = roots_sort_key(xs[i]["roots"])
+            b = roots_sort_key(xs[i + 1]["roots"])
+            if a > b:
+                e1 = xs[i]
+                key = (e1["roots"], e1["langCode"], e1.get("meaning", ""))
+                if key in AEGR_OCR_BLOB_ENTRY_KEYS:
+                    continue
+                to_remove.append({"roots": e1["roots"], "langCode": e1["langCode"], "meaning": e1.get("meaning", "")})
+    return to_remove
+
+
 def _parse_standalone_hyphen_entry(seg: str) -> list[dict] | None:
     """Headwords like '-ales (the ending of plant order names)' with no language tag in OCR."""
     seg = seg.strip()
@@ -726,10 +767,14 @@ def parse_segment(seg: str) -> list[dict]:
 
 
 def _append_parsed_entries(entries: list[dict], seg: str) -> None:
+    """Attach `rawSegment` only to the first emitted row when one OCR cell splits into several entries."""
+    kept: list[dict] = []
     for row in parse_segment(seg):
         if roots_is_concat_fragment(row["roots"]):
             continue
-        row["rawSegment"] = seg[:500]
+        kept.append(row)
+    for i, row in enumerate(kept):
+        row["rawSegment"] = seg[:500] if i == 0 else ""
         entries.append(row)
 
 
@@ -884,10 +929,35 @@ def browse_letter_bucket(roots: str) -> str:
     return "#"
 
 
-def roots_sort_key(roots: str) -> str:
-    """Lowercase key for alphabetical order within a letter (strip browse marks; trailing ';' junk)."""
+_FIRST_STEM_STRIP = re.compile(r"^[=«»•*-]+")
+
+
+def first_stem_key(roots: str) -> str:
+    """
+    First headword stem for comparison (lowercase). Two rows sharing this value are usually
+    Borror’s multiple combining forms of the same lemma (`acr, =a` vs `acr, -i`); they are not
+    OCR inversions when `roots_sort_key` disagrees with book order.
+    """
     r = _BROWSE_STRIP_HEAD_RE.sub("", roots)
     r = r.rstrip(";").strip().lower()
+    first = r.split(",")[0].strip() if r else ""
+    return _FIRST_STEM_STRIP.sub("", first)
+
+
+def roots_sort_key(roots: str) -> str:
+    """
+    Lowercase key for lint / inversion checks within a browse letter.
+
+    Raw ASCII would sort `, -` before `, =` (hyphen code point before equals), but Borror orders
+    combining forms by book convention, not ASCII. We map comma-led combining markers so that
+    `=` variants sort before `-` variants before `*` variants (common book pattern).
+    """
+    r = _BROWSE_STRIP_HEAD_RE.sub("", roots)
+    r = r.rstrip(";").strip().lower()
+    # Avoid false inversions among same-lemma lines: = before - before * after each comma.
+    r = re.sub(r",\s*=", ",\x01=", r)
+    r = re.sub(r",\s*-", ",\x02-", r)
+    r = re.sub(r",\s*\*", ",\x03*", r)
     return r
 
 
@@ -1042,6 +1112,7 @@ def main() -> None:
 
     entries = [e for e in entries if e["roots"] not in SPURIOUS_ROOTS]
     inv_excl = _load_spurious_alphabetical_inversion_entries(script_dir)
+    inv_excl = frozenset(t for t in inv_excl if t not in AEGR_OCR_BLOB_ENTRY_KEYS)
     if inv_excl:
         entries = [
             e

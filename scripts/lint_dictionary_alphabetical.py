@@ -46,6 +46,8 @@ def main() -> None:
     for L in letters:
         xs = buckets[L]
         for i in range(len(xs) - 1):
+            if mod.first_stem_key(xs[i]["roots"]) == mod.first_stem_key(xs[i + 1]["roots"]):
+                continue
             a = mod.roots_sort_key(xs[i]["roots"])
             b = mod.roots_sort_key(xs[i + 1]["roots"])
             if a > b:

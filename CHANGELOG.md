@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.45] - 2026-04-10
+
+### Changed
+
+- Regenerate **`scripts/spurious_alphabetical_inversion_entries.json`** with **`first_stem_key`** skipping (same lemma, different combining markers — restores **~79** rows previously dropped as false inversions).
+- Add **`AEGR_OCR_BLOB_ENTRY_KEYS`**, **`compute_spurious_alphabetical_inversion_drops`**, and **`scripts/regenerate_spurious_alphabetical_inversion_entries.py`**; never treat the six **`_try_split_aegr_aelur_ocr_blob`** rows as inversion drops (book order inside that OCR blob disagrees with strict string sort).
+- When one layout cell yields several entries, set **`rawSegment`** only on the **first** row (avoid repeating the full shredded blob on every split row).
+- **`extract_dictionary`** / **`rebuild_dictionary_from_json`**: filter loaded inversion exclusions against **`AEGR_OCR_BLOB_ENTRY_KEYS`**.
+- Regenerate **`web/public/dictionary.json`** (restores **aene**, **haem**, **aelur** among the **aegr** split rows).
+
 ## [0.1.44] - 2026-04-10
 
 ### Changed
