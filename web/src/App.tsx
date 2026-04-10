@@ -5,8 +5,9 @@ import { NameBuilder } from './components/NameBuilder'
 import { BORROR_INTRODUCTION } from './content/borrorBookSections'
 import type { DictionaryEntry, DictionaryPayload } from './types'
 
-/** Bundled in `web/public/`; same file the extractor reads. */
-const BORROR_PDF = '/dictionary_of_word_roots_and_combining_forms_borror.pdf'
+/** Bundled in `web/public/`; same file the extractor reads. `BASE_URL` is `/` in dev and `/word_roots/` in production. */
+const base = import.meta.env.BASE_URL
+const BORROR_PDF = `${base}dictionary_of_word_roots_and_combining_forms_borror.pdf`
 
 function browseLetter(entry: DictionaryEntry): string {
   const r = entry.roots.replace(/^[*•=«»\s]+/, '')
@@ -33,7 +34,7 @@ export default function App() {
   const [speciesToolOpen, setSpeciesToolOpen] = useState(false)
 
   useEffect(() => {
-    fetch('/dictionary.json')
+    fetch(`${base}dictionary.json`)
       .then((r) => {
         if (!r.ok) throw new Error(`HTTP ${r.status}`)
         return r.json()
