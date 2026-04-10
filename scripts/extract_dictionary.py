@@ -55,6 +55,12 @@ def fix_ocr_typos(segment: str) -> str:
     s = re.sub(r"«urn\s*", " ", s)
     # FineReader typo on p.60 (καιρός gloss)
     s = re.sub(r"\brigit\b", "right", s, flags=re.IGNORECASE)
+    # Right-column bleed: *aell* glued onto *addict* (same page as shredded aegr block).
+    s = re.sub(
+        r"addict \(L\)\. Devoted, compelled\s+aell, =us\b",
+        "addict (L). Devoted, compelled",
+        s,
+    )
     return s
 
 
@@ -625,6 +631,30 @@ def _try_split_aleur_alet_aleth_ocr_blob(seg: str) -> list[dict] | None:
     ]
 
 
+def _try_split_aegr_aelur_ocr_blob(seg: str) -> list[dict] | None:
+    """
+    FineReader breaks the right column after *aego* into one word per line, then vertical junk
+    (-o A, Egypt, storm, cat, …). Tesseract on the page image recovers the six headwords; order
+    follows the printed column (top to bottom) before the garbage.
+    """
+    s = seg.strip()
+    if "aegr, -o (L). Sick, diseased" not in s:
+        return None
+    if "aegypt" not in s and "aelur" not in s:
+        return None
+    # Short clean line: only aegr — parse normally.
+    if len(s) < 160 and s.count("(L).") + s.count("(G).") <= 2 and "aegypt" not in s:
+        return None
+    return [
+        {"roots": "aegr, -o", "langCode": "L", "meaning": "Sick, diseased"},
+        {"roots": "aegypt, =us", "langCode": "L", "meaning": "Egypt"},
+        {"roots": "aene", "langCode": "L", "meaning": "Bronze; bronze-colored"},
+        {"roots": "aem, -a, -ato, -o", "langCode": "G", "meaning": "Blood"},
+        {"roots": "aelur, -o, =us", "langCode": "G", "meaning": "A cat; tail-wagging"},
+        {"roots": "aell, =a, -o", "langCode": "G", "meaning": "A storm, whirlwind"},
+    ]
+
+
 def _parse_standalone_hyphen_entry(seg: str) -> list[dict] | None:
     """Headwords like '-ales (the ending of plant order names)' with no language tag in OCR."""
     seg = seg.strip()
@@ -648,6 +678,9 @@ def parse_segment(seg: str) -> list[dict]:
     ale_split = _try_split_aleur_alet_aleth_ocr_blob(seg)
     if ale_split is not None:
         return ale_split
+    aegr_split = _try_split_aegr_aelur_ocr_blob(seg)
+    if aegr_split is not None:
+        return aegr_split
 
     matches = list(LANG_TAG_RE.finditer(seg))
     if not matches:
@@ -753,7 +786,7 @@ def extract_dictionary(raw_text: str) -> list[dict]:
 OCR_EQUALS_ROOT_FIXES: dict[str, str] = {}
 
 # Not real headwords — OCR column garbage or unusable duplicates (see `e_prefix_spurious_audit.md`).
-SPURIOUS_ROOTS: frozenset[str] = frozenset({"-o A", "Egypt", "elope"})
+SPURIOUS_ROOTS: frozenset[str] = frozenset({"-o A", "Egypt", "elope", "-a, -o,-o"})
 
 
 def _load_ocr_root_fixes(script_dir: Path) -> dict[str, str]:

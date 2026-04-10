@@ -5,6 +5,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.36] - 2026-04-10
+
+### Added
+
+- **`_try_split_aegr_aelur_ocr_blob`** in **`scripts/extract_dictionary.py`** for the shredded **aegr / aegypt / … / aell** right column; document in **`scripts/e_prefix_spurious_audit.md`**.
+
+### Changed
+
+- Map **`aem, -a, -ato, -o`** → **`haem, =a, -ato, -o`** and **`-ato, aeno`** → **`aeno`** in **`scripts/ocr_root_fixes.json`**; strip **`aell`** bleed from the **addict** line in **`fix_ocr_typos`**; drop **`-a, -o,-o`** via **`SPURIOUS_ROOTS`**; regenerate **`dictionary.json`**.
+
 ## [0.1.35] - 2026-04-10
 
 ### Added

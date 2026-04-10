@@ -7,5 +7,7 @@
   "eaten, =a, -ari": "caten, =a, -ari",
   "eau, -m, -s, -st, -t": "caum, -m, -s, -st, -t",
   "ere, =as, -at, -o": "cre, =as, -at, -o",
-  "eras, -i": "cras, -i"
+  "eras, -i": "cras, -i",
+  "aem, -a, -ato, -o": "haem, =a, -ato, -o",
+  "-ato, aeno": "aeno"
 }
