@@ -23,7 +23,16 @@ COL_SPLIT_RE = re.compile(r"\s{4,}")
 def fix_ocr_typos(segment: str) -> str:
     """Normalize OCR: the printed book uses '=' for terminal stems, not guillemets."""
     s = segment.replace("(Gj.", "(G).")
-    return s.replace("«", "=")
+    s = s.replace("«", "=")
+    # Missing space before '(' so LANG_DOT_RE can see (G). / (L). — e.g. "aleth,-o(G)." → "aleth, -o (G)."
+    s = re.sub(r",\s*(-[a-zA-Z0-9]+)\(([A-Za-z][A-Za-z ]*)\)\.", r", \1 (\2).", s)
+    # "x(G)." / "x(L)." with no space before parenthesis
+    s = re.sub(r"([a-zA-Z0-9,=])(\([GL][a-z]{0,14}\)\.)", r"\1 \2", s)
+    # Glued tags: "(G).(G)." → "(G). (G)."
+    s = re.sub(r"\(([GL][a-z]{0,14}\)\.)\(([GL][a-z]{0,14}\)\.)", r"\1 \2", s)
+    # OCR junk before 'Grinding' on the aleo page
+    s = re.sub(r"«urn\s*", " ", s)
+    return s
 
 
 def pdftotext_layout(pdf_path: Path) -> str:
@@ -342,6 +351,110 @@ def split_concatenated_meaning(meaning: str) -> tuple[str, str | None]:
 HAS_LANG_DOT = re.compile(r"\([^)]+\)\.\s")
 
 
+def _gloss_after_first_lang(fragment: str) -> str | None:
+    m = LANG_DOT_RE.search(fragment)
+    if not m:
+        return None
+    return fragment[m.end() :].strip()
+
+
+def _starts_hyphen_subentry_line(p: str) -> bool:
+    """Lines like '-ales (the ending of plant order names)' are a new headword after 'aleo (G). …'."""
+    s = p.strip()
+    return bool(re.match(r"^-[a-zA-Z]", s))
+
+
+def _is_roots_only_comma_line(p: str) -> bool:
+    """A line that is only 'aleur,' / 'alet,' before more stem lines and one (G). tag."""
+    return bool(re.match(r"^[a-zA-Z][a-zA-Z0-9,=\-]*,\s*$", p.strip()))
+
+
+def _starts_new_fragment_hyphen_after_short_gloss(prev: str, p: str) -> bool:
+    """Start a new column fragment before '-ales …' once the previous entry's gloss is complete."""
+    if not prev or not _starts_hyphen_subentry_line(p):
+        return False
+    g = _gloss_after_first_lang(prev)
+    if not g:
+        return False
+    g = g.strip()
+    if g.endswith(","):
+        return False
+    # Short gloss such as 'Hot, warm' before a hyphenated sub-entry on the next line.
+    return len(g) <= 80
+
+
+def _gloss_incomplete_for_continuation(prev: str) -> bool:
+    """True if text after the first '(LANG).' does not finish a normal sense (wrap continues on next line)."""
+    g = _gloss_after_first_lang(prev)
+    if not g:
+        return False
+    g = g.strip()
+    if re.search(r"[.!?;:]\s*$", g):
+        return False
+    # Two-word senses like 'Hot, warm' are complete; the next line '-ales …' starts a new headword.
+    if len(g) <= 48 and g.count(",") <= 2 and g and g[0].isupper() and not g.startswith("-"):
+        return False
+    return True
+
+
+def _is_spurious_stem_o_repeat_line(prev: str, p: str) -> bool:
+    """OCR repeats '-o' / '-o,(G).' under aleth/alet/aleur; keep in the same cell."""
+    if not re.search(r"ale(th|t|ur)", prev, re.I):
+        return False
+    ps = p.strip().replace(" ", "")
+    return bool(re.match(r"^-o,?(\([GL][a-z]*\)\.)?$", ps, re.I))
+
+
+def _should_merge_incomplete_gloss_line(prev: str, p: str) -> bool:
+    """Merge '«urnGrinding' / 'True,' / '(G). Flour,' onto an entry whose gloss still continues."""
+    ps = p.strip()
+    if not ps or HAS_LANG_DOT.search(ps):
+        return False
+    if _starts_hyphen_subentry_line(p):
+        return False
+    if _is_roots_only_comma_line(p):
+        return False
+    return _gloss_incomplete_for_continuation(prev)
+
+
+def _starts_new_fragment_roots_comma_after_closed_gloss(prev: str, p: str) -> bool:
+    """Start a new fragment at 'aleur,' after '-ales (the ending …)' (previous ends with ')')."""
+    if not _is_roots_only_comma_line(p):
+        return False
+    prev = prev.rstrip()
+    return prev.endswith(")")
+
+
+def _is_roots_comma_chain(prev: str, nxt: str) -> bool:
+    """Merge 'aleur,' + 'alet,' + 'aleth,-o(G).' into one cell before parsing."""
+    if not prev.rstrip().endswith(","):
+        return False
+    s = nxt.strip()
+    if not s or s.startswith("-"):
+        return False
+    if _is_roots_only_comma_line(nxt):
+        return True
+    # Next line continues the comma-separated stem block (e.g. 'aleth,-o(G).').
+    return bool(re.match(r"^[a-zA-Z]", s))
+
+
+def _is_stem_continuation_fragment(prev: str, nxt: str) -> bool:
+    """
+    OCR often splits comma-separated roots across columns or lines: 'achyr,' then '-o, =um (G).'
+    The second piece starts with a hyphen stem, '=', or ', -' / ', =' — not a new English gloss line.
+    """
+    if not prev.rstrip().endswith(","):
+        return False
+    s = nxt.strip()
+    if not s:
+        return False
+    if s.startswith("-") or s.startswith("="):
+        return True
+    if re.match(r"^,\s*[-=]", s):
+        return True
+    return False
+
+
 def _should_merge_orphan_continuation(left_frag: str, orphan: str) -> bool:
     """
     When the right column has a line with no '(LANG).' (e.g. 'gift'), it may continue the
@@ -378,13 +491,27 @@ def merge_column_fragments(parts: list[str]) -> list[str]:
     """
     Join layout lines where a gloss continues on the next line without a new (LANG). tag.
     pdftotext splits long glosses across rows; the continuation line has no parenthetical tag.
+    Also join '-o, =um (G).' to a previous fragment that ends with 'stem,' (split roots).
+    Start a new fragment before '-ales …' after a short (G). gloss, and before 'aleur,' after '-ales …)'.
     """
     out: list[str] = []
     for p in parts:
         p = p.strip()
         if not p:
             continue
-        if HAS_LANG_DOT.search(p):
+        if out and _is_roots_comma_chain(out[-1], p):
+            out[-1] = out[-1].rstrip() + " " + p
+        elif out and _is_stem_continuation_fragment(out[-1], p):
+            out[-1] = out[-1].rstrip() + " " + p
+        elif out and _is_spurious_stem_o_repeat_line(out[-1], p):
+            out[-1] = out[-1].rstrip() + " " + p
+        elif out and _should_merge_incomplete_gloss_line(out[-1], p):
+            out[-1] = out[-1].rstrip() + " " + p
+        elif out and _starts_new_fragment_hyphen_after_short_gloss(out[-1], p):
+            out.append(p)
+        elif out and _starts_new_fragment_roots_comma_after_closed_gloss(out[-1], p):
+            out.append(p)
+        elif HAS_LANG_DOT.search(p):
             out.append(p)
         elif out:
             out[-1] = out[-1].rstrip() + " " + p
@@ -401,7 +528,7 @@ def roots_has_embedded_lang_tag(roots: str) -> bool:
 def roots_is_concat_fragment(roots: str) -> bool:
     """Reject bogus headwords produced by bad splits (bare «/= + one letter, etc.)."""
     r = roots.strip()
-    if r in {"«a", "«o", "«s", "«e", "«i", "=a", "=o", "=s", "=e", "=i"}:
+    if r in {"-o,", "-o", "«a", "«o", "«s", "«e", "«i", "=a", "=o", "=s", "=e", "=i"}:
         return True
     if re.fullmatch(r"«[a-zA-Z]{1,2}", r):
         return True
@@ -410,43 +537,84 @@ def roots_is_concat_fragment(roots: str) -> bool:
     return False
 
 
+def _try_split_aleur_alet_aleth_ocr_blob(seg: str) -> list[dict] | None:
+    """
+    pdftotext merges the aleur / alet / aleth block into one cell with duplicated '-o' lines.
+    Split into three book entries when the OCR tail matches this page's pattern.
+    Glosses match the printed book (1960); 'Flour, meal' is not always present in OCR.
+    """
+    s = seg.strip()
+    if "aleur," not in s or "alet," not in s or "aleth" not in s:
+        return None
+    if not re.search(r"aleth,\s*-o\s*\(G\)\.", s, re.I):
+        return None
+    if not re.search(r"urnGrind|Grinding\s*True", s, re.I):
+        return None
+    return [
+        {"roots": "alet, -o", "langCode": "G", "meaning": "Grinding"},
+        {"roots": "aleth, -o", "langCode": "G", "meaning": "True, honest"},
+        {"roots": "aleur, -o =um", "langCode": "G", "meaning": "Flour, meal"},
+    ]
+
+
+def _parse_standalone_hyphen_entry(seg: str) -> list[dict] | None:
+    """Headwords like '-ales (the ending of plant order names)' with no language tag in OCR."""
+    seg = seg.strip()
+    m = re.match(r"^(-[a-zA-Z][a-zA-Z0-9,=\-]*)\s+(\([^)]+\))\s*(.*)$", seg)
+    if not m:
+        return None
+    roots, gloss_paren, rest = m.group(1), m.group(2), m.group(3).strip()
+    meaning = gloss_paren.strip("()").strip()
+    row: dict = {"roots": roots, "langCode": "G", "meaning": meaning}
+    if not rest:
+        return [row]
+    return [row] + parse_segment(rest)
+
+
 def parse_segment(seg: str) -> list[dict]:
-    """Parse one layout cell; may return two dicts if two entries were concatenated without a column gap."""
+    """Parse one layout cell; may return multiple dicts when several headwords share one OCR blob."""
     seg = seg.strip()
     if not seg:
         return []
     seg = fix_ocr_typos(seg)
+    ale_split = _try_split_aleur_alet_aleth_ocr_blob(seg)
+    if ale_split is not None:
+        return ale_split
+
     matches = list(LANG_DOT_RE.finditer(seg))
     if not matches:
+        return _parse_standalone_hyphen_entry(seg) or []
+
+    m0 = matches[0]
+    roots_raw = seg[: m0.start()].strip()
+    lang = re.sub(r"\s+", " ", m0.group(1).strip())
+    salvaged = salvage_roots(roots_raw)
+    if salvaged is None or roots_has_embedded_lang_tag(salvaged) or roots_is_concat_fragment(salvaged):
         return []
 
-    # Prefer the leftmost '(LANG).' whose roots salvage to a real headword (first match is usually correct).
-    for m in matches:
-        roots_raw = seg[: m.start()].strip()
-        lang = re.sub(r"\s+", " ", m.group(1).strip())
-        meaning = seg[m.end() :].strip()
-        if not meaning:
-            continue
-        salvaged = salvage_roots(roots_raw)
-        if salvaged is None:
-            continue
-        if roots_has_embedded_lang_tag(salvaged):
-            continue
-        meaning, tail = split_concatenated_meaning(meaning)
-        if not meaning and tail:
-            return parse_segment(tail)
-        if roots_is_concat_fragment(salvaged):
-            continue
-        row: dict = {
-            "roots": salvaged,
-            "langCode": lang,
-            "meaning": meaning,
-        }
-        out = [row]
-        if tail:
-            out.extend(parse_segment(tail))
-        return out
-    return []
+    if len(matches) >= 2:
+        m1 = matches[1]
+        gap = seg[m0.end() : m1.start()]
+        sp = _split_gap_between_entries(gap)
+        if sp is not None:
+            meaning, roots_next = sp
+            idx = seg.find(roots_next, m0.end(), m1.start() + 1)
+            if idx < 0:
+                idx = seg.rfind(roots_next, m0.end(), m1.start() + 1)
+            if idx >= 0:
+                rest = seg[idx:]
+                row: dict = {"roots": salvaged, "langCode": lang, "meaning": meaning.strip()}
+                return [row] + parse_segment(rest)
+
+    meaning = seg[m0.end() :].strip()
+    meaning, tail = split_concatenated_meaning(meaning)
+    if not meaning and tail:
+        return parse_segment(tail)
+    row = {"roots": salvaged, "langCode": lang, "meaning": meaning}
+    out: list[dict] = [row]
+    if tail:
+        out.extend(parse_segment(tail))
+    return out
 
 
 def _append_parsed_entries(entries: list[dict], seg: str) -> None:
@@ -467,6 +635,11 @@ def extract_dictionary(raw_text: str) -> list[dict]:
         is_last_page = page_idx == len(page_list) - 1
         left_frags: list[str] = []
         right_frags: list[str] = []
+        # Carry must be available before the first line so stem fragments (e.g. '-o, =um') merge.
+        if left_carry:
+            left_frags.append(left_carry)
+        if right_carry:
+            right_frags.append(right_carry)
         for line in page_lines:
             if should_skip_layout_line(line):
                 continue
@@ -475,11 +648,15 @@ def extract_dictionary(raw_text: str) -> list[dict]:
                 left_frags.extend(split_jammed_two_entries(left))
             if right:
                 for piece in split_jammed_two_entries(right):
-                    _append_right_or_merge_to_left(left_frags, right_frags, piece)
-        if left_carry:
-            left_frags = [left_carry] + left_frags
-        if right_carry:
-            right_frags = [right_carry] + right_frags
+                    ps = piece.strip()
+                    if (
+                        left_frags
+                        and ps
+                        and _is_stem_continuation_fragment(left_frags[-1], ps)
+                    ):
+                        left_frags[-1] = left_frags[-1].rstrip() + " " + ps
+                    else:
+                        _append_right_or_merge_to_left(left_frags, right_frags, piece)
         left_merged = merge_column_fragments(left_frags)
         right_merged = merge_column_fragments(right_frags)
 

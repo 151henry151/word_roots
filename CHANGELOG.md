@@ -5,6 +5,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.26] - 2026-04-10
+
+### Changed
+
+- In **`scripts/extract_dictionary.py`**, start new **left-column** fragments before **`-ales …`** (after a short **(G).** gloss) and before **`aleur,`** after a closing **`)`**; merge **`aleur,`/`alet,`** stem lines and spurious **`-o` / `-o,(G).`** OCR repeats; merge **incomplete** gloss continuations (e.g. **Grinding**); add a **book-aligned split** for the **aleur / alet / aleth** OCR blob; reject bogus **`-o`** / **`-o,`** roots; regenerate **`dictionary.json`**.
+
+## [0.1.25] - 2026-04-10
+
+### Changed
+
+- In **`scripts/extract_dictionary.py`**, merge **stem continuations** across columns on the **same line** (e.g. **`achyr,`** + **`-o, =um (G).`**); apply **carries** from the previous page **before** reading lines so **`-o, =um`** can merge; add OCR spacing fixes for **`,-o(G).`** and glued **`(G).(G).`**; add **`scripts/audit_dictionary.py`** to count **`dictionary.json`** quality heuristics; regenerate **`dictionary.json`**.
+
 ## [0.1.24] - 2026-04-10
 
 ### Changed
