@@ -259,6 +259,15 @@ export default function App() {
         >
           hromp.com
         </a>
+        <span className="text-stone-600"> · </span>
+        <a
+          href="https://github.com/151henry151/word_roots"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-violet-400/90 underline-offset-2 hover:text-violet-300 hover:underline"
+        >
+          GitHub
+        </a>
       </footer>
     </div>
   )
