@@ -5,6 +5,23 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.35] - 2026-04-10
+
+### Added
+
+- Document FineReader **`c`→`e`** (and related) misreads in **`scripts/e_prefix_spurious_audit.md`**.
+
+### Changed
+
+- Extend **`scripts/ocr_root_fixes.json`** with **`earner`→`camera`**, **`earn`→`carn`**, **`eaten`→`caten`**, **`eau`→`caum`**, **`ere`→`cre`**, **`eras`→`cras`**; drop **`Egypt`**, **`-o A`**, **`elope`** via **`SPURIOUS_ROOTS`** in **`scripts/extract_dictionary.py`**; regenerate **`dictionary.json`**.
+- Restore book-order letter browse in **`App`** and shorten the dictionary blurb.
+
+## [0.1.34] - 2026-04-10
+
+### Changed
+
+- Clarify in **`App`** that letter browse groups by first character of the headword (not the printed section letter); sort letter buckets alphabetically by **`roots`** so short headwords like **`e`** are easy to find.
+
 ## [0.1.33] - 2026-04-10
 
 ### Changed

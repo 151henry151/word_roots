@@ -161,9 +161,12 @@ export default function App() {
 
           <section className="space-y-4" aria-label="Dictionary">
             <p className="text-pretty text-sm leading-relaxed text-stone-400">
-              Search English glosses and roots, or browse by headword letter in the same order as the
-              printed book (each page: full left column, then full right). Each card expands
-              Borror’s shorthand (language tags, hyphens, connecting vowels).
+              Search English glosses and roots, or browse by the first letter of each headword (after
+              stripping leading marks such as <span className="text-stone-500">=</span>). Within each
+              letter, order is the same as the printed book (left column then right column per page).
+              Mis-OCR headwords that were misread as starting with the wrong letter are corrected in
+              our data where we have identified them. Each card
+              expands Borror’s shorthand (language tags, hyphens, connecting vowels).
             </p>
             <label className="block">
               <span className="sr-only">Search English or roots</span>
@@ -210,8 +213,8 @@ export default function App() {
               </>
             ) : (
               <>
-                Letter by first character of the headword (ignoring leading marks). Book order
-                within “{letter}”.
+                Letter by first character of the headword (ignoring leading marks). Book order within
+                “{letter}”.
               </>
             )}
           </p>

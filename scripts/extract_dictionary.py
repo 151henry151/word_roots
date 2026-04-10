@@ -12,6 +12,8 @@ script only merges/splits lines.
 **Ways to improve output (strongest first):**
 1. **Verified root fixes** — Add entries to `ocr_root_fixes.json` (exact `roots` string →
    replacement) and regenerate `dictionary.json`. Use when you’ve checked the printed book.
+   See `e_prefix_spurious_audit.md` for a worked example (FineReader **`c` read as `e`** in the
+   right column).
 2. **Heuristic tweaks** — Extend `fix_ocr_typos()` for safe patterns (we already map `«`/`»`
    to `=`). Broader rules need care: do not strip `!` from English glosses.
 3. **Re-OCR from raster** — Render each page (`pdftoppm`, mutool, etc.) and run **Tesseract**
@@ -750,6 +752,9 @@ def extract_dictionary(raw_text: str) -> list[dict]:
 # Optional inline roots-level fixes (merged with `ocr_root_fixes.json` in `main()`).
 OCR_EQUALS_ROOT_FIXES: dict[str, str] = {}
 
+# Not real headwords — OCR column garbage or unusable duplicates (see `e_prefix_spurious_audit.md`).
+SPURIOUS_ROOTS: frozenset[str] = frozenset({"-o A", "Egypt", "elope"})
+
 
 def _load_ocr_root_fixes(script_dir: Path) -> dict[str, str]:
     """Exact-match replacements for `roots` after extraction; keys must match broken OCR."""
@@ -778,6 +783,7 @@ def main() -> None:
     entries = extract_dictionary(text)
     for e in entries:
         e["roots"] = ocr_root_fixes.get(e["roots"], e["roots"])
+    entries = [e for e in entries if e["roots"] not in SPURIOUS_ROOTS]
     # De-dupe while preserving order
     seen: set[tuple[str, str, str]] = set()
     unique: list[dict] = []
