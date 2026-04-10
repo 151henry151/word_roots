@@ -37,7 +37,7 @@ export function AppendixCollapsibles() {
     <div className="mb-6 space-y-3">
       <CollapsibleBookSection title="Introduction" body={BORROR_INTRODUCTION} />
       {!bodies ? (
-        <p className="rounded-lg border border-stone-700/60 bg-stone-900/40 px-3 py-2 text-sm text-stone-500">
+        <p className="rounded-lg border border-neutral-700/60 bg-neutral-950 px-3 py-2 text-sm text-neutral-500">
           Loading appendix sections…
         </p>
       ) : (

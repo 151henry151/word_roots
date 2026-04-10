@@ -22,9 +22,9 @@ export function CollapsibleBookSection({
         aria-expanded={open}
         aria-controls={panelId}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center gap-2 rounded-lg border border-stone-700/90 bg-stone-900/60 px-3 py-2.5 text-left text-sm font-medium text-stone-200 hover:bg-stone-800/80 focus:outline-none focus:ring-2 focus:ring-violet-500"
+        className="flex w-full items-center gap-2 rounded-lg border border-neutral-700/90 bg-neutral-950 px-3 py-2.5 text-left text-sm font-medium text-neutral-200 hover:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-white/30"
       >
-        <span aria-hidden className="shrink-0 text-violet-400">
+        <span aria-hidden className="shrink-0 text-neutral-400">
           {open ? '▼' : '▶'}
         </span>
         <span>{title}</span>
@@ -37,7 +37,7 @@ export function CollapsibleBookSection({
         className="mt-2"
       >
         <div
-          className="max-h-[min(70vh,42rem)] overflow-y-auto rounded-lg border border-stone-700/60 bg-stone-950/50 px-4 py-3 text-left font-serif text-sm leading-relaxed text-stone-300 [overflow-wrap:anywhere] whitespace-pre-wrap"
+          className="max-h-[min(70vh,42rem)] overflow-y-auto rounded-lg border border-neutral-700/60 bg-black px-4 py-3 text-left font-serif text-sm leading-relaxed text-neutral-300 [overflow-wrap:anywhere] whitespace-pre-wrap"
         >
           {body}
         </div>

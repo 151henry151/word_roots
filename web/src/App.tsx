@@ -97,13 +97,13 @@ export default function App() {
   return (
     <div className="mx-auto flex min-h-svh max-w-3xl flex-col px-4 pb-16 pt-8 md:px-6">
       <header className="mb-10 text-center">
-        <h1 className="font-serif text-3xl font-medium tracking-tight text-stone-100 md:text-4xl">
+        <h1 className="font-serif text-3xl font-medium tracking-tight text-white md:text-4xl">
           Word Roots
         </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-pretty text-sm leading-relaxed text-stone-400 md:text-base">
+        <p className="mx-auto mt-4 max-w-2xl text-pretty text-sm leading-relaxed text-neutral-400 md:text-base">
           A tool for easier access to the information in{' '}
-          <cite className="not-italic text-stone-300">Dictionary of Word Roots and Combining Forms</cite>{' '}
-          (first edition, 1960) by <span className="text-stone-300">Donald J. Borror</span>, Mayfield
+          <cite className="not-italic text-neutral-200">Dictionary of Word Roots and Combining Forms</cite>{' '}
+          (first edition, 1960) by <span className="text-neutral-200">Donald J. Borror</span>, Mayfield
           Publishing Company. There are some OCR errors in our transcription; while we&apos;re working on
           them, the PDF remains the authoritative source for the dictionary text and for Borror’s
           sections on formulation of scientific names and transliteration.
@@ -112,7 +112,7 @@ export default function App() {
           href={BORROR_PDF}
           target="_blank"
           rel="noopener noreferrer"
-          className="mt-5 inline-flex items-center justify-center rounded-md bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 focus:ring-offset-stone-950"
+          className="mt-5 inline-flex items-center justify-center rounded-md border border-neutral-700 bg-white px-4 py-2.5 text-sm font-medium text-black hover:bg-neutral-200 focus:outline-none focus:ring-2 focus:ring-white/40 focus:ring-offset-2 focus:ring-offset-black"
         >
           Open book PDF
         </a>
@@ -121,13 +121,13 @@ export default function App() {
       <AppendixCollapsibles />
 
       {loadError && (
-        <p className="mb-6 rounded-md border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-200">
+        <p className="mb-6 rounded-md border border-neutral-600 bg-neutral-950 px-3 py-2 text-sm text-neutral-200">
           Could not load dictionary data: {loadError}
         </p>
       )}
 
       {!data && !loadError && (
-        <p className="text-center text-stone-500">Loading dictionary…</p>
+        <p className="text-center text-neutral-500">Loading dictionary…</p>
       )}
 
       {data && (
@@ -139,9 +139,9 @@ export default function App() {
               aria-expanded={speciesToolOpen}
               aria-controls={SPECIES_TOOL_PANEL_ID}
               onClick={() => setSpeciesToolOpen((o) => !o)}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-violet-800/60 bg-stone-900/80 px-4 py-3 text-left text-sm font-medium text-stone-100 hover:bg-stone-800/90 focus:outline-none focus:ring-2 focus:ring-violet-500 md:justify-start"
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-neutral-700 bg-neutral-950 px-4 py-3 text-left text-sm font-medium text-neutral-100 hover:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-white/30 md:justify-start"
             >
-              <span aria-hidden className="text-violet-400">
+              <span aria-hidden className="text-neutral-400">
                 {speciesToolOpen ? '▼' : '▶'}
               </span>
               <span>
@@ -160,9 +160,9 @@ export default function App() {
           </div>
 
           <section className="space-y-4" aria-label="Dictionary">
-            <p className="text-pretty text-sm leading-relaxed text-stone-400">
+            <p className="text-pretty text-sm leading-relaxed text-neutral-400">
               Search English glosses and roots, or browse by the first letter of each headword (after
-              stripping leading marks such as <span className="text-stone-500">=</span>). Within each
+              stripping leading marks such as <span className="text-neutral-500">=</span>). Within each
               letter, order is the same as the printed book (left column then right column per page).
               Mis-OCR headwords that were misread as starting with the wrong letter are corrected in
               our data where we have identified them. Each card
@@ -178,7 +178,7 @@ export default function App() {
                   setSearchVisibleCount(SEARCH_PAGE_SIZE)
                 }}
                 placeholder="e.g. eagle, forest, sharp…"
-                className="w-full rounded-lg border border-stone-600 bg-stone-900 px-4 py-3 font-sans text-stone-100 placeholder:text-stone-600 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+                className="w-full rounded-lg border border-neutral-700 bg-black px-4 py-3 font-sans text-neutral-100 placeholder:text-neutral-600 focus:border-neutral-500 focus:outline-none focus:ring-1 focus:ring-white/30"
               />
             </label>
 
@@ -187,10 +187,10 @@ export default function App() {
               <button
                 key={L}
                 type="button"
-                className={`min-w-[2.25rem] rounded-md px-2 py-1.5 text-sm font-medium ${
+                className={`min-w-[2.25rem] rounded-md border px-2 py-1.5 text-sm font-medium ${
                   letter === L && !isSearching
-                    ? 'bg-violet-600 text-white'
-                    : 'bg-stone-800 text-stone-300 hover:bg-stone-700'
+                    ? 'border-white bg-white text-black'
+                    : 'border-neutral-800 bg-neutral-950 text-neutral-400 hover:bg-neutral-900 hover:text-neutral-200'
                 }`}
                 onClick={() => {
                   setSearch('')
@@ -203,7 +203,7 @@ export default function App() {
             ))}
           </div>
 
-          <p className="text-center text-sm text-stone-500">
+          <p className="text-center text-sm text-neutral-500">
             {isSearching ? (
               <>
                 {searchMatchTotal.toLocaleString()} match{searchMatchTotal === 1 ? '' : 'es'} (all
@@ -219,7 +219,7 @@ export default function App() {
             )}
           </p>
 
-          <p className="text-center text-sm text-stone-500">
+          <p className="text-center text-sm text-neutral-500">
             {data.entryCount.toLocaleString()} entries
             {data.order === 'book-columns' ? ' · book column order' : ''}
           </p>
@@ -232,16 +232,16 @@ export default function App() {
             ))}
           </ul>
           {isSearching && displayedEntries.length === 0 && (
-            <p className="text-center text-stone-500">No matches.</p>
+            <p className="text-center text-neutral-500">No matches.</p>
           )}
           {!isSearching && displayedEntries.length === 0 && (
-            <p className="text-center text-stone-500">No entries for this letter.</p>
+            <p className="text-center text-neutral-500">No entries for this letter.</p>
           )}
           {canShowMoreSearch && (
             <div className="flex justify-center">
               <button
                 type="button"
-                className="rounded-md border border-stone-600 bg-stone-800 px-4 py-2 text-sm font-medium text-stone-200 hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                className="rounded-md border border-neutral-600 bg-neutral-950 px-4 py-2 text-sm font-medium text-neutral-200 hover:bg-neutral-900 focus:outline-none focus:ring-2 focus:ring-white/30"
                 onClick={() => setSearchVisibleCount((n) => n + SEARCH_PAGE_SIZE)}
               >
                 Show more ({SEARCH_PAGE_SIZE} more)
@@ -252,19 +252,19 @@ export default function App() {
         </>
       )}
 
-      <footer className="mt-auto pt-12 text-center text-xs text-stone-600">
+      <footer className="mt-auto pt-12 text-center text-xs text-neutral-500">
         <a
           href="https://hromp.com/"
-          className="text-violet-400/90 underline-offset-2 hover:text-violet-300 hover:underline"
+          className="text-neutral-400 underline-offset-2 hover:text-white hover:underline"
         >
           hromp.com
         </a>
-        <span className="text-stone-600"> · </span>
+        <span className="text-neutral-600"> · </span>
         <a
           href="https://github.com/151henry151/word_roots"
           target="_blank"
           rel="noopener noreferrer"
-          className="text-violet-400/90 underline-offset-2 hover:text-violet-300 hover:underline"
+          className="text-neutral-400 underline-offset-2 hover:text-white hover:underline"
         >
           GitHub
         </a>
