@@ -1,6 +1,8 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
+import { CollapsibleBookSection } from './components/CollapsibleBookSection'
 import { EntryCard } from './components/EntryCard'
 import { NameBuilder } from './components/NameBuilder'
+import { BORROR_INTRODUCTION } from './content/borrorBookSections'
 import type { DictionaryEntry, DictionaryPayload } from './types'
 
 /** Bundled in `web/public/`; same file the extractor reads. */
@@ -20,12 +22,15 @@ function matchesSearch(query: string, entry: DictionaryEntry): boolean {
   return terms.every((t) => hay.includes(t))
 }
 
+const SPECIES_TOOL_PANEL_ID = 'species-name-tool-panel'
+
 export default function App() {
   const [data, setData] = useState<DictionaryPayload | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [search, setSearch] = useState('')
   const deferredSearch = useDeferredValue(search)
   const [letter, setLetter] = useState('A')
+  const [speciesToolOpen, setSpeciesToolOpen] = useState(false)
 
   useEffect(() => {
     fetch('/dictionary.json')
@@ -75,42 +80,30 @@ export default function App() {
 
   return (
     <div className="mx-auto flex min-h-svh max-w-3xl flex-col px-4 pb-16 pt-8 md:px-6">
-      <header className="mb-8 text-center">
+      <header className="mb-10 text-center">
         <h1 className="font-serif text-3xl font-medium tracking-tight text-stone-100 md:text-4xl">
-          Dictionary of word roots
+          Word Roots
         </h1>
-        <p className="mt-3 text-pretty text-stone-400">
-          Search English glosses and roots, or browse by headword letter in the same order as the
-          printed book (each page: full left column, then full right). Use the name builder to draft
-          two-root compounds from a short phrase. Each card expands Borror’s shorthand (language
-          tags, hyphens, connecting vowels).
+        <p className="mx-auto mt-4 max-w-2xl text-pretty text-sm leading-relaxed text-stone-400 md:text-base">
+          A tool for easier access to the information in{' '}
+          <cite className="not-italic text-stone-300">Dictionary of Word Roots and Combining Forms</cite>{' '}
+          (first edition, 1960) by <span className="text-stone-300">Donald J. Borror</span>, Mayfield
+          Publishing Company. The PDF remains the authoritative source for the dictionary text and for
+          Borror’s sections on formulation of scientific names and transliteration.
         </p>
-        <div className="mx-auto mt-6 max-w-xl rounded-lg border border-stone-700/80 bg-stone-900/40 px-4 py-3 text-left text-sm text-stone-300">
-          <p className="font-medium text-stone-200">Source book</p>
-          <p className="mt-2 text-pretty leading-relaxed text-stone-400">
-            This app is a lookup index to{' '}
-            <cite className="not-italic text-stone-300">Dictionary of Word Roots and Combining Forms</cite>{' '}
-            (first edition, 1960) by <strong className="font-medium text-stone-200">Donald J. Borror</strong>
-            , Mayfield Publishing Company. The entry list is extracted automatically from the PDF; the
-            PDF remains the authoritative source for the dictionary text and for Borror’s sections
-            on formulation of scientific names and transliteration.
-          </p>
-          <a
-            href={BORROR_PDF}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="mt-3 inline-flex items-center justify-center rounded-md bg-violet-600 px-3 py-2 text-sm font-medium text-white hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 focus:ring-offset-stone-950"
-          >
-            Open book PDF
-          </a>
-        </div>
-        {data && (
-          <p className="mt-4 text-sm text-stone-500">
-            {data.entryCount.toLocaleString()} entries
-            {data.order === 'book-columns' ? ' · book column order' : ''}
-          </p>
-        )}
+        <a
+          href={BORROR_PDF}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mt-5 inline-flex items-center justify-center rounded-md bg-violet-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-violet-500 focus:outline-none focus:ring-2 focus:ring-violet-400 focus:ring-offset-2 focus:ring-offset-stone-950"
+        >
+          Open book PDF
+        </a>
       </header>
+
+      <div className="mb-6">
+        <CollapsibleBookSection title="Introduction" body={BORROR_INTRODUCTION} />
+      </div>
 
       {loadError && (
         <p className="mb-6 rounded-md border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-200">
@@ -124,18 +117,49 @@ export default function App() {
 
       {data && (
         <>
-        <NameBuilder entries={data.entries} />
-        <section className="space-y-4" aria-label="Dictionary">
-          <label className="block">
-            <span className="sr-only">Search English or roots</span>
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="e.g. eagle, forest, sharp…"
-              className="w-full rounded-lg border border-stone-600 bg-stone-900 px-4 py-3 font-sans text-stone-100 placeholder:text-stone-600 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
-            />
-          </label>
+          <div className="mb-6">
+            <button
+              type="button"
+              id="species-tool-toggle"
+              aria-expanded={speciesToolOpen}
+              aria-controls={SPECIES_TOOL_PANEL_ID}
+              onClick={() => setSpeciesToolOpen((o) => !o)}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-violet-800/60 bg-stone-900/80 px-4 py-3 text-left text-sm font-medium text-stone-100 hover:bg-stone-800/90 focus:outline-none focus:ring-2 focus:ring-violet-500 md:justify-start"
+            >
+              <span aria-hidden className="text-violet-400">
+                {speciesToolOpen ? '▼' : '▶'}
+              </span>
+              <span>
+                Compound name builder — draft a multi-root species epithet from an English phrase
+              </span>
+            </button>
+            <div
+              id={SPECIES_TOOL_PANEL_ID}
+              role="region"
+              aria-labelledby="species-tool-toggle"
+              hidden={!speciesToolOpen}
+              className="mt-4"
+            >
+              <NameBuilder entries={data.entries} />
+            </div>
+          </div>
+
+          <section className="space-y-4" aria-label="Dictionary">
+            <p className="text-pretty text-sm leading-relaxed text-stone-400">
+              Search English glosses and roots, or browse by headword letter in the same order as the
+              printed book (each page: full left column, then full right). Each card expands
+              Borror’s shorthand (language tags, hyphens, connecting vowels).
+            </p>
+            <label className="block">
+              <span className="sr-only">Search English or roots</span>
+              <input
+                type="search"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="e.g. eagle, forest, sharp…"
+                className="w-full rounded-lg border border-stone-600 bg-stone-900 px-4 py-3 font-sans text-stone-100 placeholder:text-stone-600 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
+              />
+            </label>
 
           <div className="flex flex-wrap justify-center gap-1.5">
             {letters.map((L) => (
@@ -171,6 +195,11 @@ export default function App() {
             )}
           </p>
 
+          <p className="text-center text-sm text-stone-500">
+            {data.entryCount.toLocaleString()} entries
+            {data.order === 'book-columns' ? ' · book column order' : ''}
+          </p>
+
           <ul className="max-h-[70svh] space-y-3 overflow-y-auto pr-1">
             {displayedEntries.map((e) => (
               <li key={e.id}>
@@ -184,7 +213,7 @@ export default function App() {
           {!isSearching && displayedEntries.length === 0 && (
             <p className="text-center text-stone-500">No entries for this letter.</p>
           )}
-        </section>
+          </section>
         </>
       )}
 

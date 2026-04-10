@@ -160,6 +160,54 @@ export function combineTwoRoots(
   }
 }
 
+/** Upper bound on roots in one compound (phrase length after stopword removal). */
+export const MAX_COMPOUND_ROOTS = 12
+
+/**
+ * Chain stems left-to-repeated-right using the same pairwise rules as {@link combineTwoRoots}.
+ * `greekFlags[i]` is whether the i-th root is Greek (from the dictionary entry).
+ * For each link, the left segment is treated as Greek for formulation only if every root
+ * merged into it so far was Greek.
+ */
+export function combineRootChain(stems: string[], greekFlags: boolean[]): CombineResult {
+  if (stems.length === 0) {
+    return { epithet: '', speciesEpithet: '', genusStyle: '', notes: [] }
+  }
+  if (stems.length === 1) {
+    const s = stems[0]!.toLowerCase()
+    return {
+      epithet: s,
+      speciesEpithet: s,
+      genusStyle: s.charAt(0).toUpperCase() + s.slice(1),
+      notes: [],
+    }
+  }
+  let acc = combineTwoRoots(
+    stems[0]!,
+    stems[1]!,
+    greekFlags[0]!,
+    greekFlags[1]!,
+  )
+  const notes = [...acc.notes]
+  for (let i = 2; i < stems.length; i++) {
+    const leftGreek = greekFlags.slice(0, i).every(Boolean)
+    const next = combineTwoRoots(
+      acc.speciesEpithet,
+      stems[i]!,
+      leftGreek,
+      greekFlags[i]!,
+    )
+    notes.push(...next.notes)
+    acc = {
+      epithet: next.epithet,
+      speciesEpithet: next.speciesEpithet,
+      genusStyle: next.genusStyle,
+      notes,
+    }
+  }
+  return acc
+}
+
 /** Heuristic role from Borror’s English gloss (attribute vs principal noun). */
 export type GlossRole = 'likely_noun' | 'likely_modifier' | 'unknown'
 
@@ -198,9 +246,22 @@ function wordOrderNote(first: DictionaryEntry, second: DictionaryEntry): string 
   return 'Check word order when coining a name: descriptive quality usually precedes the principal organism or part (e.g. Erythrocephala; Formulation of Scientific Names).'
 }
 
+/** Word-order hint for 3+ roots: compare first and last gloss roles only. */
+function wordOrderNoteMulti(first: DictionaryEntry, last: DictionaryEntry): string {
+  const r0 = glossRoleFromMeaning(first.meaning)
+  const r1 = glossRoleFromMeaning(last.meaning)
+  if (r0 === 'likely_noun' && r1 === 'likely_modifier') {
+    return 'Your phrase starts with a principal-like idea and ends with a descriptive one. In coined names, descriptive qualities often come before the principal (Formulation of Scientific Names). Consider reordering words if that fits your intent.'
+  }
+  if (r0 === 'likely_modifier' && r1 === 'likely_noun') {
+    return 'First and last content words follow the usual pattern (descriptive quality toward the front, principal toward the end; Formulation of Scientific Names).'
+  }
+  return 'Check word order across your phrase: descriptive quality usually precedes the principal organism or part (e.g. Erythrocephala; Formulation of Scientific Names).'
+}
+
 export interface SuggestNameResult {
   tokens: string[]
-  /** Subset of tokens used for the binary compound (first two content words). */
+  /** Content words used for the compound (after stopwords; capped at MAX_COMPOUND_ROOTS). */
   usedTokens: string[]
   matches: { token: string; entry: DictionaryEntry; stem: string }[]
   combine: CombineResult | null
@@ -219,15 +280,16 @@ export function suggestSpeciesName(
       usedTokens: tokens,
       matches: [],
       combine: null,
-      error: 'Use at least two meaningful words (e.g. “unapproachable eagle”).',
+      error: 'Use at least two meaningful words (e.g. “sea eagle”).',
     }
   }
 
-  const workTokens = tokens.slice(0, 2)
-  const note =
-    tokens.length > 2
-      ? `Only the first two content words are used (“${workTokens.join('” + “')}”) for a two-root compound.`
-      : undefined
+  let workTokens = tokens
+  let note: string | undefined
+  if (tokens.length > MAX_COMPOUND_ROOTS) {
+    workTokens = tokens.slice(0, MAX_COMPOUND_ROOTS)
+    note = `Only the first ${MAX_COMPOUND_ROOTS} content words are used (“${workTokens.join('”, “')}”).`
+  }
 
   const matches: { token: string; entry: DictionaryEntry; stem: string }[] = []
   const usedIds = new Set<number>()
@@ -269,15 +331,17 @@ export function suggestSpeciesName(
     }
   }
 
-  // Attribute (quality) before principal (noun): Borror — quality precedes principal (e.g. Erythrocephala).
-  const [first, second] = [matches[0]!, matches[1]!]
-  const combine = combineTwoRoots(
-    first.stem,
-    second.stem,
-    isGreek(first.entry),
-    isGreek(second.entry),
-  )
-  combine.notes.push(wordOrderNote(first.entry, second.entry))
+  const stems = matches.map((m) => m.stem)
+  const greekFlags = matches.map((m) => isGreek(m.entry))
+  const combine = combineRootChain(stems, greekFlags)
+
+  if (matches.length === 2) {
+    combine.notes.push(wordOrderNote(matches[0]!.entry, matches[1]!.entry))
+  } else {
+    combine.notes.push(
+      wordOrderNoteMulti(matches[0]!.entry, matches[matches.length - 1]!.entry),
+    )
+  }
 
   return { tokens, usedTokens: workTokens, matches, combine, note }
 }

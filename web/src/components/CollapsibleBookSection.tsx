@@ -1,0 +1,47 @@
+import { useId, useState } from 'react'
+
+export function CollapsibleBookSection({
+  title,
+  body,
+  defaultOpen = false,
+}: {
+  title: string
+  body: string
+  defaultOpen?: boolean
+}) {
+  const baseId = useId()
+  const panelId = `${baseId}-panel`
+  const btnId = `${baseId}-btn`
+  const [open, setOpen] = useState(defaultOpen)
+
+  return (
+    <div className="mb-3">
+      <button
+        type="button"
+        id={btnId}
+        aria-expanded={open}
+        aria-controls={panelId}
+        onClick={() => setOpen((o) => !o)}
+        className="flex w-full items-center gap-2 rounded-lg border border-stone-700/90 bg-stone-900/60 px-3 py-2.5 text-left text-sm font-medium text-stone-200 hover:bg-stone-800/80 focus:outline-none focus:ring-2 focus:ring-violet-500"
+      >
+        <span aria-hidden className="shrink-0 text-violet-400">
+          {open ? '▼' : '▶'}
+        </span>
+        <span>{title}</span>
+      </button>
+      <div
+        id={panelId}
+        role="region"
+        aria-labelledby={btnId}
+        hidden={!open}
+        className="mt-2"
+      >
+        <div
+          className="max-h-[min(70vh,42rem)] overflow-y-auto rounded-lg border border-stone-700/60 bg-stone-950/50 px-4 py-3 text-left font-serif text-sm leading-relaxed text-stone-300 [overflow-wrap:anywhere] whitespace-pre-wrap"
+        >
+          {body}
+        </div>
+      </div>
+    </div>
+  )
+}

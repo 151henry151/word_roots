@@ -1,10 +1,14 @@
 import { useEffect, useState } from 'react'
-import { suggestSpeciesName, type SuggestNameResult } from '../nameBuilder'
+import {
+  MAX_COMPOUND_ROOTS,
+  suggestSpeciesName,
+  type SuggestNameResult,
+} from '../nameBuilder'
 import type { DictionaryEntry } from '../types'
 import { describeLangCodes } from '../langNames'
 
 export function NameBuilder({ entries }: { entries: DictionaryEntry[] }) {
-  const [phrase, setPhrase] = useState('an unapproachable eagle')
+  const [phrase, setPhrase] = useState('sea eagle')
   const [result, setResult] = useState<SuggestNameResult | null>(null)
 
   useEffect(() => {
@@ -21,11 +25,11 @@ export function NameBuilder({ entries }: { entries: DictionaryEntry[] }) {
       className="mb-10 rounded-xl border border-violet-900/40 bg-stone-900/40 px-4 py-5 md:px-5"
       aria-label="Name builder"
     >
-      <h2 className="font-serif text-xl font-medium text-stone-100">New species name (draft)</h2>
+      <h2 className="font-serif text-xl font-medium text-stone-100">Compound name builder (draft)</h2>
       <p className="mt-2 text-sm leading-relaxed text-stone-400">
-        Describe the organism in a few English words. The tool matches each word to Borror’s
-        glosses, picks stems, and combines them using the rules in <em>Formulation of Scientific
-        Names</em> (combining vowels; same language when possible). Add proper Latin endings for
+        Describe the organism in a few English words (articles and glue words are skipped). Each
+        remaining word is matched to a gloss, stems are chained left-to-right with the rules in{' '}
+        <em>Formulation of Scientific Names</em> (up to {MAX_COMPOUND_ROOTS} roots). Add proper Latin endings for
         genus or species to agree with grammar elsewhere in the name.
       </p>
 
@@ -37,7 +41,7 @@ export function NameBuilder({ entries }: { entries: DictionaryEntry[] }) {
             value={phrase}
             onChange={(e) => setPhrase(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && run()}
-            placeholder="e.g. an unapproachable eagle"
+            placeholder="e.g. sea eagle"
             className="w-full rounded-lg border border-stone-600 bg-stone-950 px-3 py-2.5 font-sans text-stone-100 placeholder:text-stone-600 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
           />
         </label>

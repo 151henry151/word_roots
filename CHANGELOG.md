@@ -5,6 +5,48 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.16] - 2026-04-09
+
+### Changed
+
+- Set the compound name builder’s default example to **sea eagle** (two roots, draft epithet `haliaet` from sea + eagle glosses).
+
+## [0.1.15] - 2026-04-09
+
+### Changed
+
+- Merge the preface and how-to collapsibles into a single **Introduction** section (`BORROR_INTRODUCTION`).
+
+## [0.1.14] - 2026-04-09
+
+### Changed
+
+- Add a **Word Roots** title above the intro blurb, shrink the blurb type size, rephrase it as a tool for easier access to Borror’s book, and drop the sentence about automatic extraction from the PDF.
+
+## [0.1.13] - 2026-04-09
+
+### Added
+
+- Add collapsible **Preface** and **How to use this dictionary** sections above the compound name builder, with full text from Borror (1960) bundled in `web/src/content/borrorBookSections.ts`.
+
+## [0.1.12] - 2026-04-09
+
+### Changed
+
+- Set the compound name builder’s default example phrase to “small bright forest beetle” (field-note style description and a coherent draft epithet from the matched roots).
+
+## [0.1.11] - 2026-04-09
+
+### Changed
+
+- Chain **more than two roots** in the compound name builder: match every content word (up to 12) and combine stems left-to-right with the same pairwise formulation rules; add word-order hints for two-word phrases versus first-and-last words when longer.
+
+## [0.1.10] - 2026-04-09
+
+### Changed
+
+- Restructure the main layout: put the Borror attribution as the top-level header, place Open book PDF below it without a card, add a toggle for the compound name builder (collapsed by default), and move the dictionary usage blurb directly above the search field.
+
 ## [0.1.9] - 2026-04-09
 
 ### Added
