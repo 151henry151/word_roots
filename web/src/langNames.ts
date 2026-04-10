@@ -47,3 +47,21 @@ export function describeLangCodes(code: string): string {
     })
     .join('; ')
 }
+
+/** Borror inline gloss tags in meanings, e.g. "(G): a net" — not the headword "(L)." / "(G)." delimiter. */
+const INLINE_LANG_COLON_IN_MEANING = /\(([A-Za-z][A-Za-z ]*)\):\s*/g
+
+/**
+ * Expand inline "(L):" / "(G):" markers in a gloss string to match {@link describeLangCodes}
+ * (e.g. "(G): a net" → "Greek (G): a net"). Unknown codes keep parentheses.
+ */
+export function expandInlineMeaningLangTags(meaning: string): string {
+  return meaning.replace(INLINE_LANG_COLON_IN_MEANING, (_m, codeRaw: string) => {
+    const code = codeRaw.trim()
+    const full = LANG_NAMES[code]
+    if (full) {
+      return `${full} (${code}): `
+    }
+    return `(${code}): `
+  })
+}

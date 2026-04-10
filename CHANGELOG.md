@@ -5,6 +5,61 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.33] - 2026-04-10
+
+### Changed
+
+- Update the **`App`** header blurb to mention OCR errors in the transcription and keep the PDF as the authority.
+
+## [0.1.32] - 2026-04-10
+
+### Changed
+
+- In **`scripts/extract_dictionary.py`**, normalize **`rigit` → `right`** in **`fix_ocr_typos`** (καιρός gloss).
+- Treat gloss-area commas correctly: do not merge **`=cremaster`-style** right-column lines into left-column entries via stem-continuation or roots comma-chain heuristics; treat trailing commas after **`(G).`** / **`(L).`** as wrapped gloss so **`universe`** continues **`cosm, -o`**; regenerate **`dictionary.json`** (restore **`cosm, -o`** gloss and **`=cremaster`** as its own entry; drop bogus **`world, =cremaster`**).
+
+## [0.1.31] - 2026-04-10
+
+### Added
+
+- Document OCR limitations in **`scripts/extract_dictionary.py`**; add **`scripts/ocr_root_fixes.json`** for exact **`roots`** string replacements after extraction (merged with optional inline **`OCR_EQUALS_ROOT_FIXES`**).
+
+### Changed
+
+- Apply initial **`ocr_root_fixes.json`** entries for **`men!` → `meni`**, **`mené` → `mene`**, **`mendie` → `mendic`**; regenerate **`dictionary.json`**.
+
+## [0.1.30] - 2026-04-10
+
+### Changed
+
+- Replace the page footer with a link to **`https://hromp.com/`**.
+- Load post-dictionary appendix text via **three dynamic imports** (`borrorFormulation`, `borrorTransliteration`, `borrorCombining`); update **`scripts/export_borror_appendix.py`** to emit those modules instead of one **`borrorAppendixSections.ts`** file.
+- Add search **match total**, **showing N of total**, and **Show more** (in **`SEARCH_PAGE_SIZE`** rows) for dictionary search results.
+- Bump **`word_roots-web`** to **0.1.30**.
+
+## [0.1.29] - 2026-04-10
+
+### Changed
+
+- In **`scripts/extract_dictionary.py`**, map OCR **`»`** to **`=`** in **`fix_ocr_typos`** (with **`«`**, matching Borror’s equals sign for terminal stems); regenerate **`dictionary.json`**.
+
+## [0.1.28] - 2026-04-10
+
+### Changed
+
+- In **`NameBuilder`**, expand Borror inline meaning tags **`(L):`** / **`(G):`** to full labels (e.g. **Greek (G):**) via **`expandInlineMeaningLangTags`** in **`langNames.ts`**.
+- Bump **`word_roots-web`** to **0.1.28**.
+
+## [0.1.27] - 2026-04-10
+
+### Added
+
+- Add collapsible **Formulation of scientific names**, **Transliteration of Greek words**, and **Some common combining forms** panels (text from the post-dictionary PDF pages via **`scripts/export_borror_appendix.py`**; Greek alphabet and transliteration rules transcribed in Unicode where the PDF text layer is unreliable).
+
+### Changed
+
+- Bump **`word_roots-web`** to **0.1.27**.
+
 ## [0.1.26] - 2026-04-10
 
 ### Changed

@@ -5,7 +5,7 @@ import {
   type SuggestNameResult,
 } from '../nameBuilder'
 import type { DictionaryEntry } from '../types'
-import { describeLangCodes } from '../langNames'
+import { describeLangCodes, expandInlineMeaningLangTags } from '../langNames'
 
 export function NameBuilder({ entries }: { entries: DictionaryEntry[] }) {
   const [phrase, setPhrase] = useState('sea eagle')
@@ -69,7 +69,7 @@ export function NameBuilder({ entries }: { entries: DictionaryEntry[] }) {
               <span className="text-stone-500">“{m.token}” → </span>
               <code className="text-violet-200">{m.entry.roots}</code>
               <span className="text-stone-500"> ({describeLangCodes(m.entry.langCode)}) </span>
-              <span className="text-stone-400">— {m.entry.meaning}</span>
+              <span className="text-stone-400">— {expandInlineMeaningLangTags(m.entry.meaning)}</span>
             </li>
           ))}
         </ul>

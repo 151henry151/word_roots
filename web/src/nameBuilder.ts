@@ -34,7 +34,7 @@ export function tokenizeDescription(phrase: string): string[] {
 /** First comma-separated stem token, without leading marks. */
 export function primaryStem(rootsField: string): string {
   const first = rootsField.split(',')[0].trim()
-  return first.replace(/^[=«»•*\-]+/u, '').replace(/^[«»]+/u, '').trim()
+  return first.replace(/^[=«»•*-]+/u, '').replace(/^[«»]+/u, '').trim()
 }
 
 export function langCodes(entry: DictionaryEntry): string[] {
@@ -51,7 +51,8 @@ export function isLatin(entry: DictionaryEntry): boolean {
 }
 
 /**
- * Score dictionary rows by English gloss overlap with a keyword.
+ * Score dictionary rows by English gloss overlap with a keyword, or by headword / roots field
+ * (so e.g. “linol” matches the row whose gloss is “Flax oil”, same as search on roots).
  */
 export function bestEntryForKeyword(
   keyword: string,
@@ -60,18 +61,35 @@ export function bestEntryForKeyword(
   const kw = keyword.toLowerCase()
   if (kw.length < 2) return null
   let best: { entry: DictionaryEntry; score: number } | null = null
-  const wordBoundary = new RegExp(`\\b${kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i')
+  const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  const meaningWordBoundary = new RegExp(`\\b${escaped}\\b`, 'i')
+  /** Match a stem token in Borror’s comma-separated roots field (not mid-word). */
+  const rootsTokenBoundary = new RegExp(`(^|[,\\s])${escaped}([,\\s=]|$)`, 'i')
 
   for (const e of entries) {
+    let score: number | null = null
+
     const m = e.meaning.toLowerCase()
-    if (!m.includes(kw)) continue
-    let score = 0
-    if (wordBoundary.test(e.meaning)) score += 120
-    else score += 60
-    // Prefer shorter glosses (more specific) slightly
-    score -= Math.min(e.meaning.length, 180) / 20
-    // Slight preference for Greek-only roots for compounding Greek names
-    if (isGreek(e) && !e.langCode.includes('L')) score += 8
+    if (m.includes(kw)) {
+      let s = 0
+      if (meaningWordBoundary.test(e.meaning)) s += 120
+      else s += 60
+      s -= Math.min(e.meaning.length, 180) / 20
+      if (isGreek(e) && !e.langCode.includes('L')) s += 8
+      score = s
+    }
+
+    const stem = primaryStem(e.roots).toLowerCase()
+    const r = e.roots
+    if (stem === kw) {
+      const s = 195 - Math.min(r.length, 100) / 25
+      score = score === null ? s : Math.max(score, s)
+    } else if (r.toLowerCase().includes(kw)) {
+      const s = (rootsTokenBoundary.test(r) ? 145 : 85) - Math.min(r.length, 80) / 40
+      score = score === null ? s : Math.max(score, s)
+    }
+
+    if (score === null) continue
     if (!best || score > best.score) best = { entry: e, score }
   }
   return best

@@ -1,14 +1,14 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react'
-import { CollapsibleBookSection } from './components/CollapsibleBookSection'
+import { AppendixCollapsibles } from './components/AppendixCollapsibles'
 import { EntryCard } from './components/EntryCard'
 import { NameBuilder } from './components/NameBuilder'
-import { BORROR_INTRODUCTION } from './content/borrorBookSections'
 import type { DictionaryEntry, DictionaryPayload } from './types'
 
 /** Bundled in `web/public/`; same file the extractor reads. Follows Vite `base` (`/` in local dev, `/word_roots/` when built with `.env.production`). */
 const base = import.meta.env.BASE_URL
 const BORROR_PDF = `${base}dictionary_of_word_roots_and_combining_forms_borror.pdf`
 
+/** First browse bucket: strip Borror lead-in marks (`=`, `•`, `*`, `«`/`»` guillemet OCR, spaces). Not stripped: `-` (suffix entries), `;` junk, or accented letters (`é`) — those sort under “#”. */
 function browseLetter(entry: DictionaryEntry): string {
   const r = entry.roots.replace(/^[*•=«»\s]+/, '')
   const ch = r.charAt(0).toUpperCase()
@@ -25,6 +25,9 @@ function matchesSearch(query: string, entry: DictionaryEntry): boolean {
 
 const SPECIES_TOOL_PANEL_ID = 'species-name-tool-panel'
 
+/** Initial rows when searching; "Show more" adds another batch of this size. */
+const SEARCH_PAGE_SIZE = 200
+
 export default function App() {
   const [data, setData] = useState<DictionaryPayload | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -32,6 +35,7 @@ export default function App() {
   const deferredSearch = useDeferredValue(search)
   const [letter, setLetter] = useState('A')
   const [speciesToolOpen, setSpeciesToolOpen] = useState(false)
+  const [searchVisibleCount, setSearchVisibleCount] = useState(SEARCH_PAGE_SIZE)
 
   useEffect(() => {
     fetch(`${base}dictionary.json`)
@@ -64,20 +68,31 @@ export default function App() {
   useEffect(() => {
     if (!letters.length) return
     if (!letters.includes(letter)) {
+      // Letter invalid after data load (e.g. first paint '#'); sync to first available bucket.
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot correction when `letters` first populates
       setLetter(letters[0]!)
     }
   }, [letters, letter])
+
+  const searchMatches = useMemo(() => {
+    if (!data) return []
+    const q = deferredSearch.trim()
+    if (!q) return []
+    return data.entries.filter((e) => matchesSearch(deferredSearch, e))
+  }, [data, deferredSearch])
 
   const displayedEntries = useMemo(() => {
     if (!data) return []
     const q = deferredSearch.trim()
     if (q) {
-      return data.entries.filter((e) => matchesSearch(deferredSearch, e)).slice(0, 200)
+      return searchMatches.slice(0, searchVisibleCount)
     }
     return byLetter.get(letter) ?? []
-  }, [data, deferredSearch, letter, byLetter])
+  }, [data, deferredSearch, letter, byLetter, searchMatches, searchVisibleCount])
 
   const isSearching = Boolean(deferredSearch.trim())
+  const searchMatchTotal = searchMatches.length
+  const canShowMoreSearch = isSearching && searchVisibleCount < searchMatchTotal
 
   return (
     <div className="mx-auto flex min-h-svh max-w-3xl flex-col px-4 pb-16 pt-8 md:px-6">
@@ -89,8 +104,9 @@ export default function App() {
           A tool for easier access to the information in{' '}
           <cite className="not-italic text-stone-300">Dictionary of Word Roots and Combining Forms</cite>{' '}
           (first edition, 1960) by <span className="text-stone-300">Donald J. Borror</span>, Mayfield
-          Publishing Company. The PDF remains the authoritative source for the dictionary text and for
-          Borror’s sections on formulation of scientific names and transliteration.
+          Publishing Company. There are some OCR errors in our transcription; while we&apos;re working on
+          them, the PDF remains the authoritative source for the dictionary text and for Borror’s
+          sections on formulation of scientific names and transliteration.
         </p>
         <a
           href={BORROR_PDF}
@@ -102,9 +118,7 @@ export default function App() {
         </a>
       </header>
 
-      <div className="mb-6">
-        <CollapsibleBookSection title="Introduction" body={BORROR_INTRODUCTION} />
-      </div>
+      <AppendixCollapsibles />
 
       {loadError && (
         <p className="mb-6 rounded-md border border-red-900/50 bg-red-950/40 px-3 py-2 text-sm text-red-200">
@@ -156,7 +170,10 @@ export default function App() {
               <input
                 type="search"
                 value={search}
-                onChange={(e) => setSearch(e.target.value)}
+                onChange={(e) => {
+                  setSearch(e.target.value)
+                  setSearchVisibleCount(SEARCH_PAGE_SIZE)
+                }}
                 placeholder="e.g. eagle, forest, sharp…"
                 className="w-full rounded-lg border border-stone-600 bg-stone-900 px-4 py-3 font-sans text-stone-100 placeholder:text-stone-600 focus:border-violet-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               />
@@ -174,6 +191,7 @@ export default function App() {
                 }`}
                 onClick={() => {
                   setSearch('')
+                  setSearchVisibleCount(SEARCH_PAGE_SIZE)
                   setLetter(L)
                 }}
               >
@@ -185,8 +203,10 @@ export default function App() {
           <p className="text-center text-sm text-stone-500">
             {isSearching ? (
               <>
-                Showing up to 200 matches (all letters). Pick a letter or clear the search box to
-                browse by letter in book order.
+                {searchMatchTotal.toLocaleString()} match{searchMatchTotal === 1 ? '' : 'es'} (all
+                letters). Showing {Math.min(searchVisibleCount, searchMatchTotal).toLocaleString()} of{' '}
+                {searchMatchTotal.toLocaleString()}. Pick a letter or clear the search box to browse by
+                letter in book order.
               </>
             ) : (
               <>
@@ -214,12 +234,28 @@ export default function App() {
           {!isSearching && displayedEntries.length === 0 && (
             <p className="text-center text-stone-500">No entries for this letter.</p>
           )}
+          {canShowMoreSearch && (
+            <div className="flex justify-center">
+              <button
+                type="button"
+                className="rounded-md border border-stone-600 bg-stone-800 px-4 py-2 text-sm font-medium text-stone-200 hover:bg-stone-700 focus:outline-none focus:ring-2 focus:ring-violet-500"
+                onClick={() => setSearchVisibleCount((n) => n + SEARCH_PAGE_SIZE)}
+              >
+                Show more ({SEARCH_PAGE_SIZE} more)
+              </button>
+            </div>
+          )}
           </section>
         </>
       )}
 
       <footer className="mt-auto pt-12 text-center text-xs text-stone-600">
-        {data?.source}. GPL-3.0.
+        <a
+          href="https://hromp.com/"
+          className="text-violet-400/90 underline-offset-2 hover:text-violet-300 hover:underline"
+        >
+          hromp.com
+        </a>
       </footer>
     </div>
   )

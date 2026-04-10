@@ -3,6 +3,23 @@
 Extract dictionary entries from Borror PDF using pdftotext -layout (two-column pages).
 
 Requires: pdftotext (poppler-utils).
+
+**Text quality (not “live OCR”)** — `pdftotext` reads the PDF’s *embedded text layer*
+(produced when the PDF was built, e.g. ABBYY FineReader). It does not re-scan page images.
+Character errors (e.g. `!` for `i`, `é` for `e`) come from that layer; layout glue in our
+script only merges/splits lines.
+
+**Ways to improve output (strongest first):**
+1. **Verified root fixes** — Add entries to `ocr_root_fixes.json` (exact `roots` string →
+   replacement) and regenerate `dictionary.json`. Use when you’ve checked the printed book.
+2. **Heuristic tweaks** — Extend `fix_ocr_typos()` for safe patterns (we already map `«`/`»`
+   to `=`). Broader rules need care: do not strip `!` from English glosses.
+3. **Re-OCR from raster** — Render each page (`pdftoppm`, mutool, etc.) and run **Tesseract**
+   (or another engine) on PNGs; rebuild the pipeline to replace `pdftotext`. Quality varies by
+   DPI, engine, and two-column layout; compare samples before switching.
+4. **Different PDF** — Another scan or export may have a cleaner text layer.
+
+See also comments on `OCR_EQUALS_ROOT_FIXES` below.
 """
 
 from __future__ import annotations
@@ -13,8 +30,9 @@ import subprocess
 import sys
 from pathlib import Path
 
-# Language tag before gloss: space + (LANG). — may appear more than once if OCR merged lines.
-LANG_DOT_RE = re.compile(r"\s+\(([^)]+)\)\.\s*")
+# Language tag after headword: space + (LANG). or (LANG): — Borror uses periods for the main
+# delimiter and colons for Latin/Greek gloss parts within one entry (e.g. "lino (L): … (G): …").
+LANG_TAG_RE = re.compile(r"\s+\(([^)]+)\)(\.|\:)\s*")
 
 # Split two columns: wide whitespace run (4+ spaces).
 COL_SPLIT_RE = re.compile(r"\s{4,}")
@@ -24,7 +42,8 @@ def fix_ocr_typos(segment: str) -> str:
     """Normalize OCR: the printed book uses '=' for terminal stems, not guillemets."""
     s = segment.replace("(Gj.", "(G).")
     s = s.replace("«", "=")
-    # Missing space before '(' so LANG_DOT_RE can see (G). / (L). — e.g. "aleth,-o(G)." → "aleth, -o (G)."
+    s = s.replace("»", "=")
+    # Missing space before '(' so LANG_TAG_RE can see (G). / (L). — e.g. "aleth,-o(G)." → "aleth, -o (G)."
     s = re.sub(r",\s*(-[a-zA-Z0-9]+)\(([A-Za-z][A-Za-z ]*)\)\.", r", \1 (\2).", s)
     # "x(G)." / "x(L)." with no space before parenthesis
     s = re.sub(r"([a-zA-Z0-9,=])(\([GL][a-z]{0,14}\)\.)", r"\1 \2", s)
@@ -32,6 +51,8 @@ def fix_ocr_typos(segment: str) -> str:
     s = re.sub(r"\(([GL][a-z]{0,14}\)\.)\(([GL][a-z]{0,14}\)\.)", r"\1 \2", s)
     # OCR junk before 'Grinding' on the aleo page
     s = re.sub(r"«urn\s*", " ", s)
+    # FineReader typo on p.60 (καιρός gloss)
+    s = re.sub(r"\brigit\b", "right", s, flags=re.IGNORECASE)
     return s
 
 
@@ -84,7 +105,14 @@ def iter_dictionary_pages(raw_text: str):
 
 
 def pages_for_dictionary_entries(raw_text: str):
-    """Yield line lists, one per page, from first dictionary line through end of dictionary."""
+    """
+    Yield line lists, one per page, from first dictionary line through end of dictionary.
+
+    Stops before *Formulation of Scientific Names* (the prose chapter after the A–Z listing).
+    That sentinel must be paired with the next line starting *The scientific naming* so the
+    table of contents line is not mistaken for the chapter title. Later sections (e.g.
+    *Transliteration of Greek Words*, *Some Common Combining Forms*) are never included.
+    """
     started = False
     for lines in iter_dictionary_pages(raw_text):
         if not started:
@@ -140,9 +168,9 @@ def line_left_right(line: str) -> tuple[str | None, str | None]:
 
 
 # One pdftotext line may contain two entries if the column gap is only 2–3 spaces (below COL_SPLIT width).
-# Each fragment is "roots (LANG). gloss…"; find multiple headwords and split into separate cells.
+# Each fragment is "roots (LANG).|:" gloss…"; find multiple headwords and split into separate cells.
 _JAMMED_ENTRY_HEAD = re.compile(
-    r"(?:^|\s{2,})([=a-zA-Z«][a-zA-Z0-9,=«\s\-,]*)\s+\(([^)]+)\)\.",
+    r"(?:^|\s{2,})([=a-zA-Z«][a-zA-Z0-9,=«\s\-,]*)\s+\(([^)]+)\)(\.|\:)",
 )
 
 
@@ -166,6 +194,15 @@ def _looks_like_borror_roots(s: str) -> bool:
         if len(parts) >= 2 and all(p.isalpha() and p[0].islower() for p in parts):
             return False
     return True
+
+
+def _is_inline_latin_then_greek_tag(m0: re.Match, m1: re.Match) -> bool:
+    """Same entry: '… (L): … (G): …' — the (G): part is not a new headword."""
+    return (
+        m0.group(2) == ":"
+        and m1.group(2) == ":"
+        and m1.group(1).strip() == "G"
+    )
 
 
 def _split_gap_between_entries(gap: str) -> tuple[str, str] | None:
@@ -193,8 +230,8 @@ def _split_gap_between_entries(gap: str) -> tuple[str, str] | None:
 
 
 def _split_jammed_by_lang_tags(cell: str) -> list[str] | None:
-    """Split on multiple 'roots (LANG).' groups when a narrow gutter merged two columns into one line."""
-    matches = list(LANG_DOT_RE.finditer(cell))
+    """Split on multiple 'roots (LANG).|:' groups when a narrow gutter merged two columns into one line."""
+    matches = list(LANG_TAG_RE.finditer(cell))
     if len(matches) < 2:
         return None
     m0, m1 = matches[0], matches[1]
@@ -281,16 +318,16 @@ def salvage_roots(roots: str) -> str | None:
 # A second headword inside the gloss (single space between gloss and next root is common).
 # Must not match bare "=a" / "=s" fragments — see roots_is_concat_fragment.
 # Includes "=stem, -o (G)." after fix_ocr_typos maps « to =.
-# Allow spaces inside roots (e.g. "drom, -a, -ae, …, =us") so the whole headword matches before "(G).".
+# Allow spaces inside roots (e.g. "drom, -a, -ae, …, =us") so the whole headword matches before "(G).|:".
 CONCAT_ENTRY_IN_MEANING = re.compile(
-    r"\s+((?:[a-zA-Z][a-zA-Z0-9,=«\s\-,]*|=[a-zA-Z][a-zA-Z0-9,=«\s\-,]*|«[a-zA-Z][a-zA-Z0-9,=«\s\-,]*))\s+\(([A-Za-z][A-Za-z ]*)\)\.\s*",
+    r"\s+((?:[a-zA-Z][a-zA-Z0-9,=«\s\-,]*|=[a-zA-Z][a-zA-Z0-9,=«\s\-,]*|«[a-zA-Z][a-zA-Z0-9,=«\s\-,]*))\s+\(([A-Za-z][A-Za-z ]*)\)(\.|\:)\s*",
 )
 
 # Two column entries run together: "… Of copper, money agel, =a (G). A herd" — the comma–equals
-# form must match explicitly; a generic "word (LANG)." pattern cannot allow spaces inside the
+# form must match explicitly; a generic "word (LANG).|:" pattern cannot allow spaces inside the
 # capture or it greedily eats from the first space in the gloss.
 CONCAT_COMMA_EQUALS_HEADWORD = re.compile(
-    r"\s+([a-zA-Z][a-zA-Z,=\-]*,\s*=[a-zA-Z]+)\s+\(([A-Za-z][A-Za-z ]*)\)\.\s*",
+    r"\s+([a-zA-Z][a-zA-Z,=\-]*,\s*=[a-zA-Z]+)\s+\(([A-Za-z][A-Za-z ]*)\)(\.|\:)\s*",
 )
 
 
@@ -312,12 +349,16 @@ def split_concatenated_meaning(meaning: str) -> tuple[str, str | None]:
     if m:
         return meaning[: m.start()].strip(), meaning[m.start() :].strip()
 
-    matches = list(LANG_DOT_RE.finditer(meaning))
+    matches = list(LANG_TAG_RE.finditer(meaning))
     # One '(LANG).' in the gloss: "…English… stem, -o, =us (G). rest" — split English from headword.
     if len(matches) == 1:
         m0 = matches[0]
         gap = meaning[: m0.start()].strip()
-        sp = _split_gap_between_entries(gap)
+        # Meaning is only "… ; … (G): …" after the main '(L).' tag was stripped — gap is not "gloss + next roots".
+        if m0.group(2) == ":" and m0.group(1).strip() == "G":
+            sp = None
+        else:
+            sp = _split_gap_between_entries(gap)
         if sp is not None:
             gloss, roots = sp
             idx = meaning.find(roots, 0, m0.start() + 1)
@@ -329,7 +370,7 @@ def split_concatenated_meaning(meaning: str) -> tuple[str, str | None]:
     if len(matches) >= 2:
         m0, m1 = matches[0], matches[1]
         gap = meaning[m0.end() : m1.start()]
-        sp = _split_gap_between_entries(gap)
+        sp = None if _is_inline_latin_then_greek_tag(m0, m1) else _split_gap_between_entries(gap)
         if sp is not None:
             _, roots_next = sp
             idx = meaning.find(roots_next, m0.end(), m1.start() + 1)
@@ -347,12 +388,12 @@ def split_concatenated_meaning(meaning: str) -> tuple[str, str | None]:
     return meaning, None
 
 
-# A new headword always contains a Borror language tag like (G). or (L). or (G My).
-HAS_LANG_DOT = re.compile(r"\([^)]+\)\.\s")
+# A line/fragment with a Borror language tag: (G). / (L). or (L): / (G): (colon = gloss parts).
+HAS_LANG_TAG = re.compile(r"\([^)]+\)(\.|\:)\s")
 
 
 def _gloss_after_first_lang(fragment: str) -> str | None:
-    m = LANG_DOT_RE.search(fragment)
+    m = LANG_TAG_RE.search(fragment)
     if not m:
         return None
     return fragment[m.end() :].strip()
@@ -391,6 +432,9 @@ def _gloss_incomplete_for_continuation(prev: str) -> bool:
     g = g.strip()
     if re.search(r"[.!?;:]\s*$", g):
         return False
+    # Trailing comma means the gloss wraps on the next line (e.g. 'Order; the world,' + 'universe').
+    if g.endswith(","):
+        return True
     # Two-word senses like 'Hot, warm' are complete; the next line '-ales …' starts a new headword.
     if len(g) <= 48 and g.count(",") <= 2 and g and g[0].isupper() and not g.startswith("-"):
         return False
@@ -408,7 +452,7 @@ def _is_spurious_stem_o_repeat_line(prev: str, p: str) -> bool:
 def _should_merge_incomplete_gloss_line(prev: str, p: str) -> bool:
     """Merge '«urnGrinding' / 'True,' / '(G). Flour,' onto an entry whose gloss still continues."""
     ps = p.strip()
-    if not ps or HAS_LANG_DOT.search(ps):
+    if not ps or HAS_LANG_TAG.search(ps):
         return False
     if _starts_hyphen_subentry_line(p):
         return False
@@ -429,6 +473,10 @@ def _is_roots_comma_chain(prev: str, nxt: str) -> bool:
     """Merge 'aleur,' + 'alet,' + 'aleth,-o(G).' into one cell before parsing."""
     if not prev.rstrip().endswith(","):
         return False
+    # After the first '(LANG).|:' the trailing comma is usually English gloss ('the world,') —
+    # not a split stem line; merging would glue the next line onto the wrong entry (cosm + universe).
+    if LANG_TAG_RE.search(prev):
+        return False
     s = nxt.strip()
     if not s or s.startswith("-"):
         return False
@@ -444,6 +492,10 @@ def _is_stem_continuation_fragment(prev: str, nxt: str) -> bool:
     The second piece starts with a hyphen stem, '=', or ', -' / ', =' — not a new English gloss line.
     """
     if not prev.rstrip().endswith(","):
+        return False
+    # Comma in English gloss ('the world,') must not glue the next column's '=cremaster (G).…' onto
+    # the previous left-column entry.
+    if LANG_TAG_RE.search(prev):
         return False
     s = nxt.strip()
     if not s:
@@ -466,9 +518,9 @@ def _should_merge_orphan_continuation(left_frag: str, orphan: str) -> bool:
         return False
     if "(" in o or ")" in o:
         return False
-    if not HAS_LANG_DOT.search(left_frag):
+    if not HAS_LANG_TAG.search(left_frag):
         return False
-    m = LANG_DOT_RE.search(left_frag)
+    m = LANG_TAG_RE.search(left_frag)
     if not m:
         return False
     meaning = left_frag[m.end() :].strip()
@@ -479,12 +531,24 @@ def _append_right_or_merge_to_left(left_frags: list[str], right_frags: list[str]
     p = piece.strip()
     if not p:
         return
-    if not HAS_LANG_DOT.search(p):
+    if not HAS_LANG_TAG.search(p):
         for i in range(len(left_frags) - 1, -1, -1):
             if _should_merge_orphan_continuation(left_frags[i], p):
                 left_frags[i] = left_frags[i].rstrip() + " " + p
                 return
     right_frags.append(piece)
+
+
+def _should_merge_l_colon_then_g_line(prev: str, p: str) -> bool:
+    """
+    One entry uses '(L): … (G): …' across lines; pdftotext puts '(G):' on the next line.
+    Without this, HAS_LANG_TAG treats that line as a new fragment (e.g. lino + flax; (G):).
+    """
+    prev = prev.rstrip()
+    p = p.strip()
+    if "(L):" not in prev or "(G):" in prev:
+        return False
+    return "(G):" in p
 
 
 def merge_column_fragments(parts: list[str]) -> list[str]:
@@ -511,7 +575,9 @@ def merge_column_fragments(parts: list[str]) -> list[str]:
             out.append(p)
         elif out and _starts_new_fragment_roots_comma_after_closed_gloss(out[-1], p):
             out.append(p)
-        elif HAS_LANG_DOT.search(p):
+        elif out and _should_merge_l_colon_then_g_line(out[-1], p):
+            out[-1] = out[-1].rstrip() + " " + p
+        elif HAS_LANG_TAG.search(p):
             out.append(p)
         elif out:
             out[-1] = out[-1].rstrip() + " " + p
@@ -521,8 +587,8 @@ def merge_column_fragments(parts: list[str]) -> list[str]:
 
 
 def roots_has_embedded_lang_tag(roots: str) -> bool:
-    """True if OCR merged two headwords — roots should not contain a second '(LANG).' gloss tag."""
-    return bool(re.search(r"\s\([A-Z][a-z]{0,14}\)\.\s", roots))
+    """True if OCR merged two headwords — roots should not contain a second '(LANG).|:' gloss tag."""
+    return bool(re.search(r"\s\([A-Z][a-z]{0,14}\)(\.|\:)\s", roots))
 
 
 def roots_is_concat_fragment(roots: str) -> bool:
@@ -581,7 +647,7 @@ def parse_segment(seg: str) -> list[dict]:
     if ale_split is not None:
         return ale_split
 
-    matches = list(LANG_DOT_RE.finditer(seg))
+    matches = list(LANG_TAG_RE.finditer(seg))
     if not matches:
         return _parse_standalone_hyphen_entry(seg) or []
 
@@ -595,7 +661,7 @@ def parse_segment(seg: str) -> list[dict]:
     if len(matches) >= 2:
         m1 = matches[1]
         gap = seg[m0.end() : m1.start()]
-        sp = _split_gap_between_entries(gap)
+        sp = None if _is_inline_latin_then_greek_tag(m0, m1) else _split_gap_between_entries(gap)
         if sp is not None:
             meaning, roots_next = sp
             idx = seg.find(roots_next, m0.end(), m1.start() + 1)
@@ -681,21 +747,37 @@ def extract_dictionary(raw_text: str) -> list[dict]:
     return entries
 
 
-# Optional roots-level fixes when OCR still disagrees with the book after fix_ocr_typos («→=).
+# Optional inline roots-level fixes (merged with `ocr_root_fixes.json` in `main()`).
 OCR_EQUALS_ROOT_FIXES: dict[str, str] = {}
+
+
+def _load_ocr_root_fixes(script_dir: Path) -> dict[str, str]:
+    """Exact-match replacements for `roots` after extraction; keys must match broken OCR."""
+    out = dict(OCR_EQUALS_ROOT_FIXES)
+    path = script_dir / "ocr_root_fixes.json"
+    if path.is_file():
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict):
+            for k, v in data.items():
+                if isinstance(k, str) and isinstance(v, str):
+                    out[k] = v
+    return out
 
 
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
+    script_dir = Path(__file__).resolve().parent
     pdf = root / "web" / "public" / "dictionary_of_word_roots_and_combining_forms_borror.pdf"
     out_json = root / "web" / "public" / "dictionary.json"
     if len(sys.argv) > 1:
         pdf = Path(sys.argv[1])
 
+    ocr_root_fixes = _load_ocr_root_fixes(script_dir)
+
     text = pdftotext_layout(pdf)
     entries = extract_dictionary(text)
     for e in entries:
-        e["roots"] = OCR_EQUALS_ROOT_FIXES.get(e["roots"], e["roots"])
+        e["roots"] = ocr_root_fixes.get(e["roots"], e["roots"])
     # De-dupe while preserving order
     seen: set[tuple[str, str, str]] = set()
     unique: list[dict] = []
