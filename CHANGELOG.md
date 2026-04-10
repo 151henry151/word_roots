@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.17] - 2026-04-10
+
+### Changed
+
+- Set Vite **`base`** to **`/word_roots/`** for production builds served at **`https://hromp.com/word_roots/`**.
+
 ## [0.1.16] - 2026-04-09
 
 ### Changed
