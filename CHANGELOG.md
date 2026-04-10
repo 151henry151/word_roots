@@ -5,6 +5,12 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.24] - 2026-04-10
+
+### Changed
+
+- In **`scripts/extract_dictionary.py`**, split **narrow-gutter** lines that contain two **`(LANG).`** tags by locating the **second headword** in the gap before the next tag; split **two glosses in one meaning** when a single **`(LANG).`** remains (e.g. **drimy** / **drom**); skip false splits at **`, =us`** terminal stems; **merge** right-column lines without a language tag onto the **matching** left-column gloss (e.g. **gift** after **doro**); regenerate **`dictionary.json`**.
+
 ## [0.1.23] - 2026-04-10
 
 ### Changed

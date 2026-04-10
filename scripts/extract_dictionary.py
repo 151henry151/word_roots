@@ -137,11 +137,84 @@ _JAMMED_ENTRY_HEAD = re.compile(
 )
 
 
+def _looks_like_borror_roots(s: str) -> bool:
+    """Heuristic: headword field vs English gloss (e.g. 'Stand apart' is not roots)."""
+    s = s.strip()
+    if not roots_look_valid(s):
+        return False
+    if s.startswith("("):
+        return False
+    # Before the first comma, Borror has a single stem token (not "stinging drom").
+    first = s.split(",")[0].strip()
+    if " " in first:
+        return False
+    # English lists use ", word" — Borror uses ", -o" / ", =a". Reject ", be" / ", distant".
+    if re.search(r",\s+(?![-=])[a-zA-Z]", s):
+        return False
+    # Two+ lowercase words with no comma / = / hyphen stem pattern — almost always gloss, not roots.
+    if "," not in s and "=" not in s and "-" not in s:
+        parts = s.split()
+        if len(parts) >= 2 and all(p.isalpha() and p[0].islower() for p in parts):
+            return False
+    return True
+
+
+def _split_gap_between_entries(gap: str) -> tuple[str, str] | None:
+    """
+    Given text between '(LANG1).' and the next '(LANG2).', split English gloss of entry 1 from
+    roots of entry 2. Prefer the longest suffix that looks like a Borror headword (e.g. 'doro',
+    'drom, -a, …, =us').
+    """
+    gap = gap.strip()
+    if not gap:
+        return None
+    best: tuple[str, str] | None = None
+    best_roots_len = -1
+    for m in re.finditer(r"\s+", gap):
+        gloss = gap[: m.start()].strip()
+        roots = gap[m.end() :].strip()
+        if not gloss or not roots:
+            continue
+        if not _looks_like_borror_roots(roots):
+            continue
+        if len(roots) > best_roots_len:
+            best_roots_len = len(roots)
+            best = (gloss, roots)
+    return best
+
+
+def _split_jammed_by_lang_tags(cell: str) -> list[str] | None:
+    """Split on multiple 'roots (LANG).' groups when a narrow gutter merged two columns into one line."""
+    matches = list(LANG_DOT_RE.finditer(cell))
+    if len(matches) < 2:
+        return None
+    m0, m1 = matches[0], matches[1]
+    gap = cell[m0.end() : m1.start()]
+    sp = _split_gap_between_entries(gap)
+    if sp is None:
+        return None
+    _, roots_next = sp
+    idx = cell.find(roots_next, m0.end(), m1.start() + 1)
+    if idx < 0:
+        idx = cell.rfind(roots_next, m0.end(), min(len(cell), m1.start() + len(roots_next) + 4))
+    if idx < 0:
+        return None
+    first = cell[:idx].strip()
+    rest = cell[idx:].strip()
+    if not first or not rest:
+        return None
+    rest_parts = split_jammed_two_entries(rest)
+    return [first] + rest_parts
+
+
 def split_jammed_two_entries(cell: str) -> list[str]:
     """Split a layout fragment that accidentally contains two headwords (narrow column gutter in OCR)."""
     cell = cell.strip()
     if not cell:
         return []
+    by_lang = _split_jammed_by_lang_tags(cell)
+    if by_lang is not None:
+        return by_lang
     matches = list(_JAMMED_ENTRY_HEAD.finditer(cell))
     if len(matches) <= 1:
         return [cell]
@@ -199,8 +272,9 @@ def salvage_roots(roots: str) -> str | None:
 # A second headword inside the gloss (single space between gloss and next root is common).
 # Must not match bare "=a" / "=s" fragments — see roots_is_concat_fragment.
 # Includes "=stem, -o (G)." after fix_ocr_typos maps « to =.
+# Allow spaces inside roots (e.g. "drom, -a, -ae, …, =us") so the whole headword matches before "(G).".
 CONCAT_ENTRY_IN_MEANING = re.compile(
-    r"\s+((?:[a-zA-Z][a-zA-Z«=*,\-0-9]*|=[a-zA-Z][a-zA-Z0-9,=«\s\-,]*|«[a-zA-Z][a-zA-Z0-9,=«\s\-,]*))\s+\(([A-Za-z][A-Za-z ]*)\)\.\s*",
+    r"\s+((?:[a-zA-Z][a-zA-Z0-9,=«\s\-,]*|=[a-zA-Z][a-zA-Z0-9,=«\s\-,]*|«[a-zA-Z][a-zA-Z0-9,=«\s\-,]*))\s+\(([A-Za-z][A-Za-z ]*)\)\.\s*",
 )
 
 # Two column entries run together: "… Of copper, money agel, =a (G). A herd" — the comma–equals
@@ -211,18 +285,93 @@ CONCAT_COMMA_EQUALS_HEADWORD = re.compile(
 )
 
 
+def _is_false_terminal_equals_concat(meaning: str, m: re.Match) -> bool:
+    """OCR 'drom, -a, …, =us (G).' must not split at the terminal ', =us (G).' alone."""
+    if m.start() == 0:
+        return False
+    if meaning[m.start() - 1] != ",":
+        return False
+    roots = m.group(1).strip()
+    if not roots.startswith("="):
+        return False
+    return bool(re.fullmatch(r"=[a-zA-Z]{1,4}", roots))
+
+
 def split_concatenated_meaning(meaning: str) -> tuple[str, str | None]:
     """If meaning contains a second 'roots (LANG).', return gloss and tail for another parse."""
     m = CONCAT_COMMA_EQUALS_HEADWORD.search(meaning)
-    if not m:
-        m = CONCAT_ENTRY_IN_MEANING.search(meaning)
-    if not m:
-        return meaning, None
-    return meaning[: m.start()].strip(), meaning[m.start() :].strip()
+    if m:
+        return meaning[: m.start()].strip(), meaning[m.start() :].strip()
+
+    matches = list(LANG_DOT_RE.finditer(meaning))
+    # One '(LANG).' in the gloss: "…English… stem, -o, =us (G). rest" — split English from headword.
+    if len(matches) == 1:
+        m0 = matches[0]
+        gap = meaning[: m0.start()].strip()
+        sp = _split_gap_between_entries(gap)
+        if sp is not None:
+            gloss, roots = sp
+            idx = meaning.find(roots, 0, m0.start() + 1)
+            if idx < 0:
+                idx = meaning.rfind(roots, 0, m0.start() + 1)
+            if idx >= 0:
+                return gloss.strip(), meaning[idx:].strip()
+    # Two+ language tags in one meaning string
+    if len(matches) >= 2:
+        m0, m1 = matches[0], matches[1]
+        gap = meaning[m0.end() : m1.start()]
+        sp = _split_gap_between_entries(gap)
+        if sp is not None:
+            _, roots_next = sp
+            idx = meaning.find(roots_next, m0.end(), m1.start() + 1)
+            if idx < 0:
+                idx = meaning.rfind(roots_next, m0.end(), m1.start() + 1)
+            if idx >= 0:
+                return meaning[:idx].strip(), meaning[idx:].strip()
+
+    for m2 in CONCAT_ENTRY_IN_MEANING.finditer(meaning):
+        if _is_false_terminal_equals_concat(meaning, m2):
+            continue
+        if not _looks_like_borror_roots(m2.group(1)):
+            continue
+        return meaning[: m2.start()].strip(), meaning[m2.start() :].strip()
+    return meaning, None
 
 
 # A new headword always contains a Borror language tag like (G). or (L). or (G My).
 HAS_LANG_DOT = re.compile(r"\([^)]+\)\.\s")
+
+
+def _should_merge_orphan_continuation(left_frag: str, orphan: str) -> bool:
+    """
+    When the right column has a line with no '(LANG).' (e.g. 'gift'), it may continue the
+    previous line's left-column entry if the gutter was wide enough to split columns but the
+    gloss wrapped without a tag (Borror two-column layout).
+    """
+    o = orphan.strip()
+    if not o or len(o) > 120:
+        return False
+    if "(" in o or ")" in o:
+        return False
+    if not HAS_LANG_DOT.search(left_frag):
+        return False
+    m = LANG_DOT_RE.search(left_frag)
+    if not m:
+        return False
+    meaning = left_frag[m.end() :].strip()
+    return bool(re.search(r"[;,]\s*a\s*$", meaning))
+
+
+def _append_right_or_merge_to_left(left_frags: list[str], right_frags: list[str], piece: str) -> None:
+    p = piece.strip()
+    if not p:
+        return
+    if not HAS_LANG_DOT.search(p):
+        for i in range(len(left_frags) - 1, -1, -1):
+            if _should_merge_orphan_continuation(left_frags[i], p):
+                left_frags[i] = left_frags[i].rstrip() + " " + p
+                return
+    right_frags.append(piece)
 
 
 def merge_column_fragments(parts: list[str]) -> list[str]:
@@ -325,7 +474,8 @@ def extract_dictionary(raw_text: str) -> list[dict]:
             if left:
                 left_frags.extend(split_jammed_two_entries(left))
             if right:
-                right_frags.extend(split_jammed_two_entries(right))
+                for piece in split_jammed_two_entries(right):
+                    _append_right_or_merge_to_left(left_frags, right_frags, piece)
         if left_carry:
             left_frags = [left_carry] + left_frags
         if right_carry:
