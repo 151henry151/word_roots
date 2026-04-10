@@ -1,5 +1,7 @@
 import { useId, useState } from 'react'
 
+import { formatBookSectionBody } from '../formatBookBody'
+
 export function CollapsibleBookSection({
   title,
   body,
@@ -36,10 +38,8 @@ export function CollapsibleBookSection({
         hidden={!open}
         className="mt-2"
       >
-        <div
-          className="max-h-[min(70vh,42rem)] overflow-y-auto rounded-lg border border-neutral-700/60 bg-black px-4 py-3 text-left font-serif text-sm leading-relaxed text-neutral-300 [overflow-wrap:anywhere] whitespace-pre-wrap"
-        >
-          {body}
+        <div className="max-h-[min(70vh,42rem)] overflow-y-auto rounded-lg border border-neutral-700/60 bg-black px-4 py-3 text-left font-serif [overflow-wrap:anywhere]">
+          {formatBookSectionBody(body)}
         </div>
       </div>
     </div>
