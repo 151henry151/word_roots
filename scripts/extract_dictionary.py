@@ -734,7 +734,15 @@ def _append_parsed_entries(entries: list[dict], seg: str) -> None:
 
 
 def extract_dictionary(raw_text: str) -> list[dict]:
-    """All dictionary pages: left column then right column per page, with wrapped gloss lines merged."""
+    """
+    All dictionary pages: **left column** (top to bottom) then **right column** (top to bottom),
+    with wrapped gloss lines merged.
+
+    When `pdftotext` puts **two headwords on one line** without a wide column gap, `split_jammed_two_entries`
+    splits them; fragments after the first are treated as **right-column** cells if the line had no
+    separate right split (see loop below) so **caball** (right-only line) sorts before **cacatu**
+    on the same spread as *bryc* | *cacatu*.
+    """
     entries: list[dict] = []
     left_carry: str | None = None
     right_carry: str | None = None
@@ -753,7 +761,25 @@ def extract_dictionary(raw_text: str) -> list[dict]:
                 continue
             left, right = line_left_right(line)
             if left:
-                left_frags.extend(split_jammed_two_entries(left))
+                jammed = split_jammed_two_entries(left)
+                # Narrow gutter: left + right headwords on one line with no 4+ space column gap
+                # (e.g. "bryc… (G). … roar" + "cacatu (Mai)." — cacatu belongs in the right column).
+                # If both fragments went to left_frags, column-major order emitted cacatu before
+                # right-only "caball" on the line above.
+                if len(jammed) >= 2 and right is None:
+                    left_frags.append(jammed[0])
+                    for piece in jammed[1:]:
+                        ps = piece.strip()
+                        if (
+                            left_frags
+                            and ps
+                            and _is_stem_continuation_fragment(left_frags[-1], ps)
+                        ):
+                            left_frags[-1] = left_frags[-1].rstrip() + " " + ps
+                        else:
+                            _append_right_or_merge_to_left(left_frags, right_frags, piece)
+                else:
+                    left_frags.extend(jammed)
             if right:
                 for piece in split_jammed_two_entries(right):
                     ps = piece.strip()
@@ -815,7 +841,76 @@ SPURIOUS_ROOTS: frozenset[str] = frozenset({
     "tor,",
     "The",
     "-o, =us a=a",
+    # English-word / column-bleed fragments mis-read as headwords (not Borror stems).
+    "down;",
+    "flower;",
+    # Duplicate / mis-OCR of winter roots; see `cheim, -o` (G).
+    "ground, =chima, -to",
+    "living",
+    "loop;",
+    "meadow;",
+    "neck;",
+    "offish;",
+    "picked;",
+    "produce;",
+    "probe; a song; an apple, fruit; a mer",
+    "salt;",
+    "servant;",
+    "shield;",
+    "song;",
+    "teem;",
+    "toothache",
+    "tunic-o",
+    "=irons",
+    # Mis-OCR duplicate of `hedy-` (sweet); leading "f " sorts before real `fab` entries.
+    "f hedeom, *a",
+    # Junk headword for the west-northwest wind; see also broken `*x` row under X.
+    "J Py= ~g> =x",
 })
+
+
+# Match `browseLetter` in `web/src/App.tsx`: strip these from the roots line before taking the first letter.
+_BROWSE_STRIP_HEAD_RE = re.compile(r"^[*•=«»\s]+")
+
+
+def browse_letter_bucket(roots: str) -> str:
+    """First letter bucket A–Z for sorting / UI; non-Latin first char → '#'."""
+    r = _BROWSE_STRIP_HEAD_RE.sub("", roots)
+    if not r:
+        return "#"
+    ch = r[0].upper()
+    if ch.isascii() and ch.isalpha() and len(ch) == 1 and "A" <= ch <= "Z":
+        return ch
+    return "#"
+
+
+def roots_sort_key(roots: str) -> str:
+    """Lowercase key for alphabetical order within a letter (strip browse marks; trailing ';' junk)."""
+    r = _BROWSE_STRIP_HEAD_RE.sub("", roots)
+    r = r.rstrip(";").strip().lower()
+    return r
+
+
+def sort_entries_alphabetically_within_browse_letter(entries: list[dict]) -> list[dict]:
+    """
+    Sort A–Z within each browse-letter bucket (for comparison / lint only).
+
+    **Not** used when writing `dictionary.json`: that file follows **book column order** from
+    `extract_dictionary()` (left column then right column per page). Alphabetical order is only
+    a heuristic: if it disagrees with book order, suspect column mis-assignment or OCR junk
+    (see `scripts/lint_dictionary_alphabetical.py`).
+    """
+    buckets: dict[str, list[dict]] = {}
+    for e in entries:
+        L = browse_letter_bucket(e["roots"])
+        buckets.setdefault(L, []).append(e)
+    letters = sorted(buckets.keys(), key=lambda x: (x == "#", x))
+    out: list[dict] = []
+    for L in letters:
+        chunk = buckets[L]
+        chunk.sort(key=lambda e: (roots_sort_key(e["roots"]), e.get("id", 0)))
+        out.extend(chunk)
+    return out
 
 
 def _load_ocr_root_fixes(script_dir: Path) -> dict[str, str]:
@@ -838,6 +933,30 @@ def _load_ocr_entry_overrides(script_dir: Path) -> list[dict]:
         return []
     data = json.loads(path.read_text(encoding="utf-8"))
     return data if isinstance(data, list) else []
+
+
+def _load_spurious_alphabetical_inversion_entries(script_dir: Path) -> frozenset[tuple[str, str, str]]:
+    """
+    Exact (roots, langCode, meaning) triples to drop: the **first** row of each adjacent
+    browse-letter inversion (book order has e1 before e2 but roots_sort_key(e1) > roots_sort_key(e2)).
+    That first row has the **higher** lexicographic key and is usually the OCR/column glitch
+    (e.g. *cacatu* before *caball* — drop *cacatu*, keep *caball*). See
+    `spurious_alphabetical_inversion_entries.json`.
+    """
+    path = script_dir / "spurious_alphabetical_inversion_entries.json"
+    if not path.is_file():
+        return frozenset()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(data, list):
+        return frozenset()
+    out: set[tuple[str, str, str]] = set()
+    for row in data:
+        if not isinstance(row, dict):
+            continue
+        r, lc, me = row.get("roots"), row.get("langCode"), row.get("meaning")
+        if isinstance(r, str) and isinstance(lc, str) and isinstance(me, str):
+            out.add((r, lc, me))
+    return frozenset(out)
 
 
 def _normalize_roots_whitespace(roots: str) -> str:
@@ -922,6 +1041,13 @@ def main() -> None:
             e["meaning"] = _clean_meaning_column_bleed(e["meaning"])
 
     entries = [e for e in entries if e["roots"] not in SPURIOUS_ROOTS]
+    inv_excl = _load_spurious_alphabetical_inversion_entries(script_dir)
+    if inv_excl:
+        entries = [
+            e
+            for e in entries
+            if (e["roots"], e["langCode"], e.get("meaning", "")) not in inv_excl
+        ]
     # De-dupe while preserving order
     seen: set[tuple[str, str, str]] = set()
     unique: list[dict] = []
@@ -932,7 +1058,6 @@ def main() -> None:
         seen.add(key)
         unique.append(e)
 
-    # Book order: per page, full left column then full right column (form-feed pages).
     for i, e in enumerate(unique):
         e["id"] = i
 

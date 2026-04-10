@@ -41,6 +41,17 @@ export function langCodes(entry: DictionaryEntry): string[] {
   return entry.langCode.trim().split(/\s+/)
 }
 
+/**
+ * True when the first comma-separated roots segment looks like English prose (OCR column bleed),
+ * not a single classical stem. Such rows must not win keyword matches on substring hits in `roots`
+ * when the gloss does not contain the keyword (e.g. "sea" matching inside garbage before "arane").
+ */
+function firstRootsSegmentLooksLikeProseBleed(roots: string): boolean {
+  const first = roots.split(',')[0]?.trim() ?? ''
+  if (!first.includes(' ')) return false
+  return first.trim().split(/\s+/).filter(Boolean).length >= 2
+}
+
 export function isGreek(entry: DictionaryEntry): boolean {
   return langCodes(entry).includes('G')
 }
@@ -85,8 +96,12 @@ export function bestEntryForKeyword(
       const s = 195 - Math.min(r.length, 100) / 25
       score = score === null ? s : Math.max(score, s)
     } else if (r.toLowerCase().includes(kw)) {
-      const s = (rootsTokenBoundary.test(r) ? 145 : 85) - Math.min(r.length, 80) / 40
-      score = score === null ? s : Math.max(score, s)
+      if (!m.includes(kw) && firstRootsSegmentLooksLikeProseBleed(r)) {
+        // Ignore roots-only substring matches inside corrupted multi-word first segments.
+      } else {
+        const s = (rootsTokenBoundary.test(r) ? 145 : 85) - Math.min(r.length, 80) / 40
+        score = score === null ? s : Math.max(score, s)
+      }
     }
 
     if (score === null) continue

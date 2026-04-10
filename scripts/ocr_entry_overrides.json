@@ -66,5 +66,23 @@
   {
     "match": { "roots": "top, -o, =us, =y", "langCode": "G" },
     "set": { "meaning": "A place" }
+  },
+  {
+    "match": {
+      "roots": "love and beauty, born from sea foam arane, =a, -i",
+      "langCode": "L",
+      "meaning": "A spider; a spider web"
+    },
+    "set": {
+      "roots": "arane, =a, -i",
+      "rawSegment": "arane, =a, -i (L). A spider; a spider web"
+    }
+  },
+  {
+    "match": { "roots": "declivi", "langCode": "L" },
+    "set": {
+      "meaning": "Sloping, bent down",
+      "rawSegment": "declivi (L). Sloping, bent down"
+    }
   }
 ]

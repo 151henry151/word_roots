@@ -5,6 +5,47 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.44] - 2026-04-10
+
+### Changed
+
+- Add **`scripts/spurious_alphabetical_inversion_entries.json`**: exact **(roots, langCode, meaning)** triples for the **first** row of each browse-letter adjacent inversion (higher `roots_sort_key` — the misplaced row); **`extract_dictionary`** and **`rebuild_dictionary_from_json`** drop those rows so the web list stays cleaner.
+- Add **`scripts/ALPHABETICAL_INVERSION_PAIR_ANALYSIS.md`**: one section per inversion with category note (including **~79** same-stem **ASCII collation** false positives where `-`/`*` vs `=` order differs from Borror’s print order).
+
+## [0.1.43] - 2026-04-10
+
+### Changed
+
+- **`extract_dictionary`**: when **`split_jammed_two_entries`** splits a **single** layout cell into multiple headwords and **`line_left_right`** found no separate right column on that line, append fragments **after the first** to **`right_frags`** (narrow gutter: left + right headwords on one line). Restores **caball** before **cacatu** (e.g. *bryc* | *cacatu* on one OCR line vs *caball* on a right-only line above).
+- Add **`scripts/report_alphabetical_inversions.py`** to dump all browse-letter alphabetical inversions for review.
+- Regenerate **`dictionary.json`** from the PDF via **`extract_dictionary.py`**.
+
+## [0.1.42] - 2026-04-10
+
+### Changed
+
+- Keep **`dictionary.json`** in **`book-columns`** order (PDF **left column then right column** per page); do **not** re-sort entries alphabetically within each letter (that reordering hid **column-assignment** bugs such as **`cacatu`** before **`caball`** when the book has the opposite).
+- **`scripts/extract_dictionary.py`**: remove alphabetical sort from **`main()`**; document **`sort_entries_alphabetically_within_browse_letter`** as lint-only.
+- **`scripts/rebuild_dictionary_from_json.py`**: preserve file order; set **`order`** to **`book-columns`**.
+- Add **`scripts/lint_dictionary_alphabetical.py`** to print adjacent pairs within each browse letter where lexicographic headword order decreases (red flag for OCR / column glue; non-zero exit when any found).
+- **`App`** / **`DictionaryPayload`**: **`order`** is **`book-columns`** only again; **`README`** describes book column order and the lint script.
+
+## [0.1.41] - 2026-04-10
+
+### Changed
+
+- **`dictionary.json`**: drop additional **`SPURIOUS_ROOTS`** OCR fragments (English “words” and column junk).
+- **`scripts/extract_dictionary.py`**: add **`browse_letter_bucket`**, **`roots_sort_key`**, **`sort_entries_alphabetically_within_browse_letter`** (later used only for optional lint; see **0.1.42**).
+- **`scripts/rebuild_dictionary_from_json.py`**: re-apply overrides and spurious filter without running PDF extraction.
+- **`scripts/ocr_entry_overrides.json`**: set **`declivi`** gloss to “Sloping, bent down”.
+
+## [0.1.40] - 2026-04-10
+
+### Changed
+
+- Correct **`arane`** row **`roots`** / **`rawSegment`** in **`dictionary.json`** (remove OCR myth text merged into the roots field); add matching rule in **`scripts/ocr_entry_overrides.json`** for regeneration.
+- In **`bestEntryForKeyword`**, ignore keyword substring hits in the **`roots`** field when the gloss does not contain the keyword and the first roots segment looks like multi-word prose bleed.
+
 ## [0.1.39] - 2026-04-09
 
 ### Changed
