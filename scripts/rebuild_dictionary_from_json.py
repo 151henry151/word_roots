@@ -40,7 +40,7 @@ def main() -> None:
 
     entries = [e for e in entries if e["roots"] not in mod.SPURIOUS_ROOTS]
     inv_excl = mod._load_spurious_alphabetical_inversion_entries(script_dir)
-    inv_excl = frozenset(t for t in inv_excl if t not in mod.AEGR_OCR_BLOB_ENTRY_KEYS)
+    inv_excl = frozenset(t for t in inv_excl if t not in mod._OCR_INVERSION_PROTECTED_KEYS)
     if inv_excl:
         entries = [
             e

@@ -20,17 +20,17 @@ After corrections, **no** legitimate Borror headwords starting with **`e`** shou
 
 ---
 
-## aegr / aelur shredded column (p.~18 of the PDF)
+## aegr / aelur shredded column (p.~9 of the PDF)
 
-FineReader emitted one word per line in the right column after **aego**, then unrelated vertical junk (`-o A`, storm/cat text). **`_try_split_aegr_aelur_ocr_blob`** in **`extract_dictionary.py`** replaces that blob with six entries aligned to Tesseract on the page image and the column order in **`pdftotext -layout`**:
+FineReader emitted one word per line in the right column after **aego**, then unrelated vertical junk (`-o A`, storm/cat text). **`_try_split_aegr_aelur_ocr_blob`** in **`extract_dictionary.py`** replaces that blob with six entries in **printed** order:
 
 | roots | Lang | Gloss (in our JSON) |
 |-------|------|---------------------|
 | **aegr, -o** | L | Sick, diseased |
 | **aegypt, =us** | L | Egypt |
-| **aene** | L | Bronze; bronze-colored |
-| **aem, -a, -ato, -o** → **haem, =a, -ato, -o** | G | Blood (merged with the existing **haem** row via dedupe) |
-| **aelur, -o, =us** | G | A cat; tail-wagging |
 | **aell, =a, -o** | G | A storm, whirlwind |
+| **aelur, -o, =us** | G | A cat; tail-wagging |
+| **aem, -a, -ato, -o** | G | Blood |
+| **aene** | L | Bronze; bronze-colored |
 
-Spurious fragments **`-a, -o,-o`** are dropped; **`-ato, aeno`** is corrected to **`aeno`** (Terrible). The **addict** line had right-column bleed **`aell, =us`**; **`fix_ocr_typos`** strips that tail.
+Fragments **`-a,` / `-o,-o (L). (G).`** from the shredded **aem** combining-forms line are removed in **`fix_ocr_typos`** so they never become a row. **`-ato, aeno`** is corrected to **`aeno`** (Terrible) via **`ocr_root_fixes.json`**. The **addict** line had right-column bleed **`aell, =us`**; **`fix_ocr_typos`** strips that tail.

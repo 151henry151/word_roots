@@ -5,6 +5,41 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.51] - 2026-04-10
+
+### Changed
+
+- **`_try_split_cnest_cneth_cnic_cnid_synthetic`**: match printed Borror lines for **cnest, -i**; **cneth, -o**; **cnic, =us**; **cnid, =a, -o** (glosses *A rasp, scraper*; *Scratch*; *A thistle-like plant*; *A nettle*); rename **`CNEST_CNETH_CNIC_CNID_OCR_BLOB_ENTRY_KEYS`**; regenerate **`dictionary.json`**.
+
+## [0.1.50] - 2026-04-10
+
+### Changed
+
+- **`_repair_cnest_shredded_right_column`**: when **cnepha**’s segment incorrectly includes **`cnest, cneth, -i`**, merge the following two right-column shards into one synthetic segment and emit **`cnest`**, **`cneth`**, **`cnic`**, **`cnid`** via **`_try_split_cnest_cneth_cnic_cnid_synthetic`**; add **`CNEST_CNETH_CNIC_CNID_OCR_BLOB_ENTRY_KEYS`** to inversion protection.
+- **`fix_ocr_typos`**: strip **cnem** gutter text and **`cnic, A nettle`** wrongly merged onto **`clethr, =urn`**; remove the earlier strip-only **` -o -o =a, enid, =us`** regex (fragments belong with **cneth**, not a standalone headword).
+- **`_append_parsed_entries`**: store **`rawSegment`** from **`fix_ocr_typos(seg)`** so previews match parsed text.
+- **`ocr_entry_overrides.json`**: set **`cnec, -o, =us`** gloss to **Pale yellow; a thistle**.
+- Regenerate **`dictionary.json`**, **`spurious_alphabetical_inversion_entries.json`**, and **`rebuild_dictionary_from_json`** inversion filter.
+
+## [0.1.49] - 2026-04-10
+
+### Changed
+
+- **`fix_ocr_typos`**: strip the **cneth** / **cnic** column shred that was parsed as **`-o -o =a, enid, =us (G).`** (p.~27); remove that string from **`SPURIOUS_ROOTS`**; regenerate **`dictionary.json`** and **`SPURIOUS_REVIEW_LIST.md`**.
+
+## [0.1.48] - 2026-04-10
+
+### Changed
+
+- **`_try_split_aegr_aelur_ocr_blob`**: emit the six right-column entries in **printed** order (**aell** and **aelur** before **aem** and **aene**); keep **Blood** as **`aem, -a, -ato, -o`** (remove **`aem`→`haem`** from **`ocr_root_fixes.json`**). Update **`AEGR_OCR_BLOB_ENTRY_KEYS`**; regenerate **`dictionary.json`** and **`spurious_alphabetical_inversion_entries.json`**.
+
+## [0.1.47] - 2026-04-10
+
+### Changed
+
+- **`fix_ocr_typos`**: strip the shredded **`-a,` / `-o,-o (L). (G).`** shard from the **aegr** column (p.~9) so it is not parsed as a headword; remove **` -a, -o,-o`** from **`SPURIOUS_ROOTS`**.
+- Regenerate **`web/public/dictionary.json`** and **`scripts/SPURIOUS_REVIEW_LIST.md`**.
+
 ## [0.1.46] - 2026-04-10
 
 ### Changed

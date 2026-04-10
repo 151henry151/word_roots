@@ -68,6 +68,28 @@ def fix_ocr_typos(segment: str) -> str:
         "addict (L). Devoted, compelled",
         s,
     )
+    # Vertical OCR after *aegr*: pieces of **=a, -ato, -o** (**aem** blood line) read as "-a," + "-o,-o (L). (G)."
+    # — not a headword (Borror p.~9 right column).
+    s = re.sub(
+        r"-a,\s*\n?\s*-o,-o\s*\(L\)\.\s*(?:\n\s*)?\(G\)\.",
+        " ",
+        s,
+        flags=re.IGNORECASE,
+    )
+    # Same PDF row as **cnem**: **clethr** left column + **cnem** gloss continuation wrongly in the gutter.
+    s = re.sub(
+        r"(clethr, =urn \(G\)\. A key, bar, bolt)\s+ankle; legging, leg armor",
+        r"\1",
+        s,
+        flags=re.IGNORECASE,
+    )
+    # **cnic** headword from the shredded column was merged onto **clethr**'s gloss (p.~27).
+    s = re.sub(
+        r"(clethr, =urn \(G\)\. A key, bar, bolt)\s+cnic, A nettle",
+        r"\1",
+        s,
+        flags=re.IGNORECASE,
+    )
     return s
 
 
@@ -640,9 +662,9 @@ def _try_split_aleur_alet_aleth_ocr_blob(seg: str) -> list[dict] | None:
 
 def _try_split_aegr_aelur_ocr_blob(seg: str) -> list[dict] | None:
     """
-    FineReader breaks the right column after *aego* into one word per line, then vertical junk
-    (-o A, Egypt, storm, cat, …). Tesseract on the page image recovers the six headwords; order
-    follows the printed column (top to bottom) before the garbage.
+    FineReader breaks the right column after *aego* into one word per line, then vertical junk.
+    Replace with six entries in **printed** order (Borror 1960, p.~9 right column): *aegr*, *aegypt*,
+    *aell*, *aelur*, *aem*, *aene*.
     """
     s = seg.strip()
     if "aegr, -o (L). Sick, diseased" not in s:
@@ -655,25 +677,85 @@ def _try_split_aegr_aelur_ocr_blob(seg: str) -> list[dict] | None:
     return [
         {"roots": "aegr, -o", "langCode": "L", "meaning": "Sick, diseased"},
         {"roots": "aegypt, =us", "langCode": "L", "meaning": "Egypt"},
-        {"roots": "aene", "langCode": "L", "meaning": "Bronze; bronze-colored"},
-        {"roots": "aem, -a, -ato, -o", "langCode": "G", "meaning": "Blood"},
-        {"roots": "aelur, -o, =us", "langCode": "G", "meaning": "A cat; tail-wagging"},
         {"roots": "aell, =a, -o", "langCode": "G", "meaning": "A storm, whirlwind"},
+        {"roots": "aelur, -o, =us", "langCode": "G", "meaning": "A cat; tail-wagging"},
+        {"roots": "aem, -a, -ato, -o", "langCode": "G", "meaning": "Blood"},
+        {"roots": "aene", "langCode": "L", "meaning": "Bronze; bronze-colored"},
     ]
 
 
-# After `ocr_root_fixes` (e.g. `aem` → `haem`), these triples match `_try_split_aegr_aelur_ocr_blob`.
+# Triples from `_try_split_aegr_aelur_ocr_blob` after `ocr_root_fixes` (no `aem`→`haem` on this page).
 # Book column order within that OCR blob is authoritative; do not drop via inversion exclusions.
 AEGR_OCR_BLOB_ENTRY_KEYS: frozenset[tuple[str, str, str]] = frozenset(
     {
         ("aegr, -o", "L", "Sick, diseased"),
         ("aegypt, =us", "L", "Egypt"),
-        ("aene", "L", "Bronze; bronze-colored"),
-        ("haem, =a, -ato, -o", "G", "Blood"),
-        ("aelur, -o, =us", "G", "A cat; tail-wagging"),
         ("aell, =a, -o", "G", "A storm, whirlwind"),
+        ("aelur, -o, =us", "G", "A cat; tail-wagging"),
+        ("aem, -a, -ato, -o", "G", "Blood"),
+        ("aene", "L", "Bronze; bronze-colored"),
     }
 )
+
+# Emitted from `_try_split_cnest_cneth_cnic_cnid_synthetic` after `_repair_cnest_shredded_right_column`.
+# Printed order (Borror): cnest → cneth → cnic → cnid (right column after cnepha).
+CNEST_CNETH_CNIC_CNID_OCR_BLOB_ENTRY_KEYS: frozenset[tuple[str, str, str]] = frozenset(
+    {
+        ("cnest, -i", "G", "A rasp, scraper"),
+        ("cneth, -o", "G", "Scratch"),
+        ("cnic, =us", "G", "A thistle-like plant"),
+        ("cnid, =a, -o", "G", "A nettle"),
+    }
+)
+
+_OCR_INVERSION_PROTECTED_KEYS: frozenset[tuple[str, str, str]] = (
+    AEGR_OCR_BLOB_ENTRY_KEYS | CNEST_CNETH_CNIC_CNID_OCR_BLOB_ENTRY_KEYS
+)
+
+# Single-segment stand-in after repair (guillemets already normalized to '=').
+_CNEST_CNETH_CNIC_CNID_SYNTHETIC_SEGMENT = (
+    "cnest, -i (G). A rasp, scraper "
+    "cneth, -o (G). Scratch "
+    "cnic, =us (G). A thistle-like plant "
+    "cnid, =a, -o (G). A nettle"
+)
+
+
+def _repair_cnest_shredded_right_column(merged: list[str]) -> list[str]:
+    """
+    pdftotext splits the **cnest / cneth / cnic / cnid** block vertically; merge_column_fragments then
+    glues **cnest, cneth, -i** onto **cnepha**'s gloss and leaves **-o -o =a, enid** as a fake row.
+    Replace three segments with one synthetic line that `_try_split_cnest_cneth_cnic_cnid_synthetic` expands.
+    """
+    out: list[str] = []
+    i = 0
+    while i < len(merged):
+        cur = merged[i]
+        if (
+            i + 2 < len(merged)
+            and re.search(r"cnepha, -to \(G\)\. Dark, darkness\s+cnest,", cur)
+            and "-o -o =a, enid, =us" in merged[i + 1]
+            and "rasp" in merged[i + 2]
+        ):
+            out.append(re.sub(r"\s+cnest,\s*cneth,\s*-i\s*$", "", cur.rstrip()))
+            out.append(_CNEST_CNETH_CNIC_CNID_SYNTHETIC_SEGMENT)
+            i += 3
+            continue
+        out.append(cur)
+        i += 1
+    return out
+
+
+def _try_split_cnest_cneth_cnic_cnid_synthetic(seg: str) -> list[dict] | None:
+    t = re.sub(r"\s+", " ", seg.strip())
+    if t != re.sub(r"\s+", " ", _CNEST_CNETH_CNIC_CNID_SYNTHETIC_SEGMENT):
+        return None
+    return [
+        {"roots": "cnest, -i", "langCode": "G", "meaning": "A rasp, scraper"},
+        {"roots": "cneth, -o", "langCode": "G", "meaning": "Scratch"},
+        {"roots": "cnic, =us", "langCode": "G", "meaning": "A thistle-like plant"},
+        {"roots": "cnid, =a, -o", "langCode": "G", "meaning": "A nettle"},
+    ]
 
 
 def compute_spurious_alphabetical_inversion_drops(entries: list[dict]) -> list[dict]:
@@ -697,7 +779,7 @@ def compute_spurious_alphabetical_inversion_drops(entries: list[dict]) -> list[d
             if a > b:
                 e1 = xs[i]
                 key = (e1["roots"], e1["langCode"], e1.get("meaning", ""))
-                if key in AEGR_OCR_BLOB_ENTRY_KEYS:
+                if key in _OCR_INVERSION_PROTECTED_KEYS:
                     continue
                 to_remove.append({"roots": e1["roots"], "langCode": e1["langCode"], "meaning": e1.get("meaning", "")})
     return to_remove
@@ -729,6 +811,9 @@ def parse_segment(seg: str) -> list[dict]:
     aegr_split = _try_split_aegr_aelur_ocr_blob(seg)
     if aegr_split is not None:
         return aegr_split
+    cnest_split = _try_split_cnest_cneth_cnic_cnid_synthetic(seg)
+    if cnest_split is not None:
+        return cnest_split
 
     matches = list(LANG_TAG_RE.finditer(seg))
     if not matches:
@@ -773,8 +858,9 @@ def _append_parsed_entries(entries: list[dict], seg: str) -> None:
         if roots_is_concat_fragment(row["roots"]):
             continue
         kept.append(row)
+    seg_for_raw = fix_ocr_typos(seg)
     for i, row in enumerate(kept):
-        row["rawSegment"] = seg[:500] if i == 0 else ""
+        row["rawSegment"] = seg_for_raw[:500] if i == 0 else ""
         entries.append(row)
 
 
@@ -837,7 +923,7 @@ def extract_dictionary(raw_text: str) -> list[dict]:
                     else:
                         _append_right_or_merge_to_left(left_frags, right_frags, piece)
         left_merged = merge_column_fragments(left_frags)
-        right_merged = merge_column_fragments(right_frags)
+        right_merged = _repair_cnest_shredded_right_column(merge_column_fragments(right_frags))
 
         def process_column(merged: list[str]) -> str | None:
             if not merged:
@@ -868,8 +954,6 @@ SPURIOUS_ROOTS: frozenset[str] = frozenset({
     "-o A",
     "Egypt",
     "elope",
-    "-a, -o,-o",
-    "-o -o =a, enid, =us",
     "swineherd",
     "moth",
     "spectacle;",
@@ -1112,7 +1196,7 @@ def main() -> None:
 
     entries = [e for e in entries if e["roots"] not in SPURIOUS_ROOTS]
     inv_excl = _load_spurious_alphabetical_inversion_entries(script_dir)
-    inv_excl = frozenset(t for t in inv_excl if t not in AEGR_OCR_BLOB_ENTRY_KEYS)
+    inv_excl = frozenset(t for t in inv_excl if t not in _OCR_INVERSION_PROTECTED_KEYS)
     if inv_excl:
         entries = [
             e

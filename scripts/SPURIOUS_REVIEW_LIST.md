@@ -1,6 +1,6 @@
 # Spurious entries — review list
 
-Generated from `scripts/extract_dictionary.py` and `scripts/spurious_alphabetical_inversion_entries.json` (2026-04-10).
+Regenerated from `scripts/extract_dictionary.py` and `scripts/spurious_alphabetical_inversion_entries.json` (2026-04-10).
 
 The published `dictionary.json` omits rows in **either** category below.
 
@@ -8,50 +8,48 @@ The published `dictionary.json` omits rows in **either** category below.
 
 ## 1. `SPURIOUS_ROOTS` (exact roots string)
 
-These **42** strings are never emitted in the web bundle—treated as OCR/column garbage or unusable duplicates. Match is on **`roots` only** (after `ocr_root_fixes`).
+These **40** strings are never emitted in the web bundle—treated as OCR/column garbage or unusable duplicates. Match is on **`roots` only** (after `ocr_root_fixes`).
 
-1. `-a, -o,-o`
-2. `-o -o =a, enid, =us`
-3. `-o A`
-4. `-o Full`
-5. `-o, =us a=a`
-6. `=irons`
-7. `=limma, =a,-to-i, -o`
-8. `A`
-9. `Egypt`
-10. `J Py= ~g> =x`
-11. `The`
-12. `collât`
-13. `down;`
-14. `ect`
-15. `elope`
-16. `f hedeom, *a`
-17. `flower;`
-18. `ground, =chima, -to`
-19. `leist, -i,`
-20. `litr,`
-21. `living`
-22. `loop;`
-23. `meadow;`
-24. `moth`
-25. `n`
-26. `neck;`
-27. `offish;`
-28. `path,`
-29. `picked;`
-30. `probe; a song; an apple, fruit; a mer`
-31. `produce;`
-32. `salt;`
-33. `servant;`
-34. `shield;`
-35. `song;`
-36. `spectacle;`
-37. `swineherd`
-38. `teem;`
-39. `toothache`
-40. `tor,`
-41. `tunic-o`
-42. `•syphar, -o -o syphil,`
+1. `-o A`
+2. `-o Full`
+3. `-o, =us a=a`
+4. `=irons`
+5. `=limma, =a,-to-i, -o`
+6. `A`
+7. `Egypt`
+8. `J Py= ~g> =x`
+9. `The`
+10. `collât`
+11. `down;`
+12. `ect`
+13. `elope`
+14. `f hedeom, *a`
+15. `flower;`
+16. `ground, =chima, -to`
+17. `leist, -i,`
+18. `litr,`
+19. `living`
+20. `loop;`
+21. `meadow;`
+22. `moth`
+23. `n`
+24. `neck;`
+25. `offish;`
+26. `path,`
+27. `picked;`
+28. `probe; a song; an apple, fruit; a mer`
+29. `produce;`
+30. `salt;`
+31. `servant;`
+32. `shield;`
+33. `song;`
+34. `spectacle;`
+35. `swineherd`
+36. `teem;`
+37. `toothache`
+38. `tor,`
+39. `tunic-o`
+40. `•syphar, -o -o syphil,`
 
 ---
 

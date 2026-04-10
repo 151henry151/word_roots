@@ -84,5 +84,12 @@
       "meaning": "Sloping, bent down",
       "rawSegment": "declivi (L). Sloping, bent down"
     }
+  },
+  {
+    "match": { "roots": "cnec, -o, =us", "langCode": "G" },
+    "set": {
+      "meaning": "Pale yellow; a thistle",
+      "rawSegment": "cnec, -o, =us (G). Pale yellow; a thistle"
+    }
   }
 ]
