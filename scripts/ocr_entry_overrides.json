@@ -1,0 +1,70 @@
+[
+  {
+    "match": { "roots": "momot" },
+    "set": { "roots": "momot, -o, =us", "langCode": "G", "meaning": "The motmot" }
+  },
+  {
+    "match": { "roots": "styg, -ano, -er, -et, -no, -o", "langCode": "G" },
+    "set": { "meaning": "Hatred; hated; hating" }
+  },
+  {
+    "match": { "roots": "trem, -e, -o, -or, -ul", "langCode": "L" },
+    "set": { "meaning": "Shake, tremble" }
+  },
+  {
+    "match": { "roots": "vire,", "langCode": "L" },
+    "set": { "meaning": "Green" }
+  },
+  {
+    "match": { "roots": "sybot", "langCode": "G N", "meaning": "A" },
+    "set": { "meaning": "A swineherd" }
+  },
+  {
+    "match": { "roots": "mise, -11, -r", "langCode": "G" },
+    "set": { "roots": "mise, -ll, -r" }
+  },
+  {
+    "match": { "roots": "ptya, - 1 , -11, -lo", "langCode": "G" },
+    "set": { "roots": "ptya, -l, -ll, -lo" }
+  },
+  {
+    "match": { "roots": "pulvi, -11, -n", "langCode": "L" },
+    "set": { "roots": "pulvi, -ll, -n" }
+  },
+  {
+    "match": { "roots": "elephant, - 1 , -o", "langCode": "G" },
+    "set": { "roots": "elephant, -l, -o" }
+  },
+  {
+    "match": { "roots": "maring,", "langCode": "L" },
+    "set": { "meaning": "Of Mary" }
+  },
+  {
+    "match": { "roots": "pano", "langCode": "L" },
+    "set": { "meaning": "Panic grass; panicle" }
+  },
+  {
+    "match": { "roots": "lexi", "langCode": "L" },
+    "set": { "meaning": "A word; speech" }
+  },
+  {
+    "match": { "roots": "mesit, =es", "langCode": "G" },
+    "set": { "meaning": "Middle; a mediator" }
+  },
+  {
+    "match": { "roots": "orneo", "langCode": "G" },
+    "set": { "meaning": "A bird" }
+  },
+  {
+    "match": { "roots": "pselli, -o, =urn", "langCode": "G" },
+    "set": { "meaning": "A bracelet" }
+  },
+  {
+    "match": { "roots": "replie", "langCode": "L" },
+    "set": { "meaning": "Fold back" }
+  },
+  {
+    "match": { "roots": "top, -o, =us, =y", "langCode": "G" },
+    "set": { "meaning": "A place" }
+  }
+]

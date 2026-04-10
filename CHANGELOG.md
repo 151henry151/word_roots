@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.1.37] - 2026-04-10
+
+### Added
+
+- **`scripts/ocr_entry_overrides.json`** for targeted **`roots`** / **`meaning`** / **`langCode`** fixes; **`ocr_manual_review_queue.md`** for remaining human checks.
+- **`_clean_meaning_column_bleed`**, **`_polish_meaning_gloss_chars`**, **`_normalize_roots_whitespace`**, **`_repair_broken_langcode`** in **`scripts/extract_dictionary.py`**.
+
+### Changed
+
+- Expand **`SPURIOUS_ROOTS`** and **`ocr_root_fixes.json`**; fix **`replie`**, **`top, -o, =us, =y`**, **`orneo`**, **`lexi`**, **`mesit`**, **`pselli`**, digit OCR (**`-11`→`-ll`**, etc.); drop **`n`**, **`A`**, **`The`**, **`tor,`** fragment rows; regenerate **`dictionary.json`** (fewer entries; no empty glosses).
+
 ## [0.1.36] - 2026-04-10
 
 ### Added

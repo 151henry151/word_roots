@@ -21,6 +21,10 @@ script only merges/splits lines.
    DPI, engine, and two-column layout; compare samples before switching.
 4. **Different PDF** — Another scan or export may have a cleaner text layer.
 
+Post-extraction cleanup: `ocr_entry_overrides.json` (targeted **meaning** / **roots** patches),
+`normalize_roots_whitespace`, `_clean_meaning_column_bleed` (triple-space column gaps),
+`_repair_broken_langcode`, and `SPURIOUS_ROOTS` (see **`ocr_manual_review_queue.md`**).
+
 See also comments on `OCR_EQUALS_ROOT_FIXES` below.
 """
 
@@ -55,6 +59,9 @@ def fix_ocr_typos(segment: str) -> str:
     s = re.sub(r"«urn\s*", " ", s)
     # FineReader typo on p.60 (καιρός gloss)
     s = re.sub(r"\brigit\b", "right", s, flags=re.IGNORECASE)
+    s = s.replace("throu#i", "through")
+    s = s.replace("hi#i", "high")
+    s = re.sub(r"bri#it", "bright", s, flags=re.IGNORECASE)
     # Right-column bleed: *aell* glued onto *addict* (same page as shredded aegr block).
     s = re.sub(
         r"addict \(L\)\. Devoted, compelled\s+aell, =us\b",
@@ -786,7 +793,29 @@ def extract_dictionary(raw_text: str) -> list[dict]:
 OCR_EQUALS_ROOT_FIXES: dict[str, str] = {}
 
 # Not real headwords — OCR column garbage or unusable duplicates (see `e_prefix_spurious_audit.md`).
-SPURIOUS_ROOTS: frozenset[str] = frozenset({"-o A", "Egypt", "elope", "-a, -o,-o"})
+SPURIOUS_ROOTS: frozenset[str] = frozenset({
+    "-o A",
+    "Egypt",
+    "elope",
+    "-a, -o,-o",
+    "-o -o =a, enid, =us",
+    "swineherd",
+    "moth",
+    "spectacle;",
+    "ect",
+    "path,",
+    "litr,",
+    "leist, -i,",
+    "=limma, =a,-to-i, -o",
+    "•syphar, -o -o syphil,",
+    "collât",
+    "-o Full",
+    "n",
+    "A",
+    "tor,",
+    "The",
+    "-o, =us a=a",
+})
 
 
 def _load_ocr_root_fixes(script_dir: Path) -> dict[str, str]:
@@ -802,6 +831,74 @@ def _load_ocr_root_fixes(script_dir: Path) -> dict[str, str]:
     return out
 
 
+def _load_ocr_entry_overrides(script_dir: Path) -> list[dict]:
+    """List of {match: {roots?, langCode?, meaning?}, set: {…}} applied after root fixes."""
+    path = script_dir / "ocr_entry_overrides.json"
+    if not path.is_file():
+        return []
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return data if isinstance(data, list) else []
+
+
+def _normalize_roots_whitespace(roots: str) -> str:
+    return re.sub(r"\s+", " ", roots.strip())
+
+
+def _repair_broken_langcode(lang: str) -> str:
+    """FineReader sometimes leaves a fragment like 'from (G' as the language field."""
+    s = lang.strip()
+    if "(" in s and not re.match(r"^[A-Za-z][A-Za-z /]{0,12}$", s):
+        if re.search(r"\(G\)", s, re.I):
+            return "G"
+        if re.search(r"\(L\)", s, re.I):
+            return "L"
+    return s
+
+
+def _polish_meaning_gloss_chars(meaning: str) -> str:
+    """Re-apply character fixes to the gloss alone (also run on `meaning` after it is split out)."""
+    if not meaning:
+        return meaning
+    m = meaning.replace("throu#i", "through")
+    m = re.sub(r"bri#it", "bright", m, flags=re.IGNORECASE)
+    m = m.replace("hi#i", "high")
+    return m
+
+
+def _clean_meaning_column_bleed(meaning: str) -> str:
+    """
+    `pdftotext -layout` often leaves 3+ spaces where the next column began — keep the left gloss.
+    Also drop a pipe-marked continuation when it looks like a second column.
+    """
+    m = meaning.strip()
+    if not m:
+        return m
+    if "|" in m and re.search(r"\|\s{2,}", m):
+        m = m.split("|", 1)[0].strip()
+    parts = re.split(r"\s{3,}", m)
+    if len(parts) >= 2:
+        m = parts[0].rstrip(" -—|*").strip()
+    return _polish_meaning_gloss_chars(m)
+
+
+def _apply_entry_overrides(entries: list[dict], overrides: list[dict]) -> None:
+    for rule in overrides:
+        match = rule.get("match") or {}
+        set_fields = rule.get("set") or {}
+        if not isinstance(match, dict) or not isinstance(set_fields, dict):
+            continue
+        for e in entries:
+            ok = True
+            for k, v in match.items():
+                if e.get(k) != v:
+                    ok = False
+                    break
+            if not ok:
+                continue
+            for k, v in set_fields.items():
+                e[k] = v
+
+
 def main() -> None:
     root = Path(__file__).resolve().parents[1]
     script_dir = Path(__file__).resolve().parent
@@ -814,8 +911,16 @@ def main() -> None:
 
     text = pdftotext_layout(pdf)
     entries = extract_dictionary(text)
+    overrides = _load_ocr_entry_overrides(script_dir)
     for e in entries:
         e["roots"] = ocr_root_fixes.get(e["roots"], e["roots"])
+        e["roots"] = _normalize_roots_whitespace(e["roots"])
+    _apply_entry_overrides(entries, overrides)
+    for e in entries:
+        e["langCode"] = _repair_broken_langcode(e.get("langCode", ""))
+        if e.get("meaning") is not None:
+            e["meaning"] = _clean_meaning_column_bleed(e["meaning"])
+
     entries = [e for e in entries if e["roots"] not in SPURIOUS_ROOTS]
     # De-dupe while preserving order
     seen: set[tuple[str, str, str]] = set()
